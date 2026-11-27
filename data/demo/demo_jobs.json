@@ -1,0 +1,57 @@
+[
+  {
+    "external_id": "demo-in-1",
+    "title": "Senior Machine Learning Engineer - LLM Systems",
+    "company": "Krutrim AI",
+    "location": "Bengaluru, India",
+    "salary_raw": "₹38 LPA - ₹55 LPA",
+    "job_type": "Full-time",
+    "work_mode": "hybrid",
+    "application_url": "https://demo.nexus-ai.local/jobs/demo-in-1",
+    "description": "Build distributed LLM training and vLLM inference serving pipelines on GPU clusters using Python, PyTorch, CUDA, NCCL, Kubernetes, and PostgreSQL. 3+ years experience required. Master's preferred."
+  },
+  {
+    "external_id": "demo-us-2",
+    "title": "Applied AI Engineer - RAG & Retrieval",
+    "company": "ContextFlow Labs",
+    "location": "San Francisco, CA",
+    "salary_raw": "$180,000 - $230,000",
+    "job_type": "Full-time",
+    "work_mode": "remote",
+    "application_url": "https://demo.nexus-ai.local/jobs/demo-us-2",
+    "description": "Design hybrid semantic + BM25 search, pgvector indexing, Cross-Encoder reranking, and stateful LangGraph multi-agent orchestration with FastAPI, PostgreSQL, Redis, and Python. 2-5 years experience."
+  },
+  {
+    "external_id": "demo-in-3",
+    "title": "Full-Stack Product Engineer (Next.js + FastAPI)",
+    "company": "FinStack India",
+    "location": "Hyderabad, India",
+    "salary_raw": "24 - 32 LPA",
+    "job_type": "Full-time",
+    "work_mode": "remote",
+    "application_url": "https://demo.nexus-ai.local/jobs/demo-in-3",
+    "description": "Own React, Next.js, TypeScript, Tailwind CSS frontend and FastAPI + PostgreSQL + Docker backend services. Bachelor's degree and 2+ years of experience required."
+  },
+  {
+    "external_id": "demo-us-4",
+    "title": "Ranking & Recommendations ML Engineer",
+    "company": "TalentGraph Inc",
+    "location": "New York, NY",
+    "salary_raw": "$170k - $215k",
+    "job_type": "Full-time",
+    "work_mode": "hybrid",
+    "application_url": "https://demo.nexus-ai.local/jobs/demo-us-4",
+    "description": "Build Learning-to-Rank LambdaMART models with LightGBM, XGBoost, Scikit-learn, Python, and implicit feedback evaluation (NDCG, MRR). 3+ years of ML ranking experience."
+  },
+  {
+    "external_id": "demo-eu-5",
+    "title": "MLOps Platform Engineer",
+    "company": "EuroCloud GmbH",
+    "location": "Berlin, Germany",
+    "salary_raw": "€90k - €115k",
+    "job_type": "Full-time",
+    "work_mode": "onsite",
+    "application_url": "https://demo.nexus-ai.local/jobs/demo-eu-5",
+    "description": "Operate Kubernetes, Terraform, Docker, Prometheus, Grafana, and Celery pipelines on AWS and GCP. Linux and Python automation required."
+  }
+]

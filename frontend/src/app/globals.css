@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+:root {
+  --bg-canvas: #fafafa;
+  --bg-surface: #ffffff;
+  --bg-subtle: rgba(12, 12, 12, 0.035);
+  --border-subtle: rgba(12, 12, 12, 0.08);
+  --border-strong: rgba(12, 12, 12, 0.14);
+  --text-primary: #171716;
+  --text-secondary: #52525b;
+  --text-muted: #71717a;
+  --brand: #4267ff;
+  --brand-soft: rgba(66, 103, 255, 0.09);
+  --brand-border: rgba(66, 103, 255, 0.22);
+}
+
+html,
+body {
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-sans), "IBM Plex Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+code,
+pre,
+.font-mono {
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+.atoms-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(12, 12, 12, 0.03);
+}
+
+.atoms-card-hover {
+  transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.atoms-card-hover:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 6px 20px -6px rgba(12, 12, 12, 0.08);
+}
+
+.atoms-segmented {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(12, 12, 12, 0.045);
+  border: 1px solid rgba(12, 12, 12, 0.06);
+}
+
+.atoms-segmented-btn {
+  padding: 5px 12px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: all 140ms ease;
+}
+
+.atoms-segmented-btn[data-active="true"] {
+  background: #ffffff;
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(12, 12, 12, 0.08);
+}
+
+.atoms-grid-bg {
+  background-image:
+    linear-gradient(to right, rgba(12, 12, 12, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(12, 12, 12, 0.035) 1px, transparent 1px);
+  background-size: 36px 36px;
+}

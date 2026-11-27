@@ -1,0 +1,59 @@
+# Byte-compiled / Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+
+# Local databases & runtime state
+*.db
+*.sqlite
+*.sqlite3
+data/cookies/
+data/outputs/
+data/storage/
+data/agent_state.json
+data/resume/*.pdf
+data/resume/*.docx
+data/resume/_parsed.txt
+data/resume/_profile.json
+data/resume/_user_description.txt
+!data/resume/.gitkeep
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/dist/
+*.tsbuildinfo
+
+# ML artifacts / caches
+ml_artifacts/
+*.pkl
+*.joblib
+*.onnx
+.cache/
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo

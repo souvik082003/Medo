@@ -1,0 +1,90 @@
+{
+  "provenance": "synthetic_dev",
+  "warning": "Synthetic development benchmark \u2014 NOT real-world user performance.",
+  "dataset_summary": {
+    "n_rows": 1500,
+    "n_groups": 100
+  },
+  "compatibility_models": [
+    {
+      "model_name": "logistic_regression",
+      "provenance": "synthetic_dev",
+      "train_size": 960,
+      "val_size": 240,
+      "test_size": 300,
+      "roc_auc": 0.9787,
+      "f1": 0.9679,
+      "brier_score": 0.0377,
+      "log_loss_val": 0.1211,
+      "ece": 0.0335
+    },
+    {
+      "model_name": "random_forest",
+      "provenance": "synthetic_dev",
+      "train_size": 960,
+      "val_size": 240,
+      "test_size": 300,
+      "roc_auc": 0.9485,
+      "f1": 0.9517,
+      "brier_score": 0.059,
+      "log_loss_val": 0.1929,
+      "ece": 0.0483
+    },
+    {
+      "model_name": "gradient_boosting",
+      "provenance": "synthetic_dev",
+      "train_size": 960,
+      "val_size": 240,
+      "test_size": 300,
+      "roc_auc": 0.9619,
+      "f1": 0.9631,
+      "brier_score": 0.0501,
+      "log_loss_val": 0.1641,
+      "ece": 0.0353
+    }
+  ],
+  "ranking_models": [
+    {
+      "model_name": "baseline_weighted",
+      "provenance": "synthetic_dev",
+      "ndcg_at_5": 0.9789,
+      "ndcg_at_10": 0.9816,
+      "precision_at_5": 1.0,
+      "recall_at_5": 0.4458,
+      "mrr": 1.0,
+      "map_score": 0.9896
+    },
+    {
+      "model_name": "pointwise_gbr",
+      "provenance": "synthetic_dev",
+      "ndcg_at_5": 0.9822,
+      "ndcg_at_10": 0.9857,
+      "precision_at_5": 1.0,
+      "recall_at_5": 0.4458,
+      "mrr": 1.0,
+      "map_score": 0.9904
+    },
+    {
+      "model_name": "pairwise_linear",
+      "provenance": "synthetic_dev",
+      "ndcg_at_5": 0.9887,
+      "ndcg_at_10": 0.985,
+      "precision_at_5": 1.0,
+      "recall_at_5": 0.4458,
+      "mrr": 1.0,
+      "map_score": 0.9926
+    },
+    {
+      "model_name": "pairwise_pytorch",
+      "provenance": "synthetic_dev",
+      "ndcg_at_5": 0.9887,
+      "ndcg_at_10": 0.9853,
+      "precision_at_5": 1.0,
+      "recall_at_5": 0.4458,
+      "mrr": 1.0,
+      "map_score": 0.9927
+    }
+  ],
+  "selected_compatibility_model": "logistic_regression_calibrated",
+  "selected_ranker_model": "pointwise_gbr"
+}
