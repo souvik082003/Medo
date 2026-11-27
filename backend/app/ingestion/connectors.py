@@ -872,7 +872,7 @@ class JSearchRapidAPIConnector(BaseJobConnector):
     source_name = "jsearch_rapidapi"
     source_type = "paid_api"
 
-    API_URL = "https://jsearch.p.rapidapi.com/search"
+    API_URL = "https://jsearch.p.rapidapi.com/search-v2"
 
     def fetch_jobs(self, keywords: list[str], region: str = "IN", limit: int = 25) -> Iterable[RawJobRecord]:
         api_key = (self.settings.rapidapi_key or "").strip()
@@ -887,7 +887,9 @@ class JSearchRapidAPIConnector(BaseJobConnector):
             headers={"X-RapidAPI-Key": api_key, "X-RapidAPI-Host": "jsearch.p.rapidapi.com"},
             timeout=20.0,
         )
-        items = data.get("data", []) if isinstance(data, dict) else []
+        # search-v2 wraps results inside data.jobs
+        raw = data.get("data", {}) if isinstance(data, dict) else {}
+        items = raw.get("jobs", []) if isinstance(raw, dict) else (raw if isinstance(raw, list) else [])
         for item in items[:limit]:
             if not isinstance(item, dict):
                 continue
