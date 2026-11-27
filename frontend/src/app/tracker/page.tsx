@@ -6,6 +6,7 @@ import { Briefcase, Check, CheckCircle2, ExternalLink, LayoutGrid, List, Pencil,
 import { StudioShell } from "@/components/StudioShell";
 import { Banner, EmptyState, StatTile } from "@/components/ui";
 import { apiFetch, ApplicationItem, JobItem } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 
 const STATUSES = [
   "draft",
@@ -24,30 +25,35 @@ const PIPELINE_COLUMNS = [
   {
     id: "saved",
     label: "Saved & Draft",
+    labelHi: "सहेजे गए और ड्राफ्ट",
     dot: "bg-[#3b5bff]",
     statuses: ["draft", "shortlisted"],
   },
   {
     id: "applied",
     label: "Applied",
+    labelHi: "आवेदन किया",
     dot: "bg-amber-500",
     statuses: ["applied"],
   },
   {
     id: "interview",
     label: "Interviewing",
+    labelHi: "साक्षात्कार चरण",
     dot: "bg-indigo-600",
     statuses: ["phone_screen", "hr_interview", "hm_interview", "final_round"],
   },
   {
     id: "outcome",
     label: "Offers & Closed",
+    labelHi: "ऑफ़र और बंद",
     dot: "bg-emerald-500",
     statuses: ["offer", "rejected", "archived", "withdrawn"],
   },
 ];
 
 export default function TrackerPage() {
+  const { tx } = useLanguage();
   const [apps, setApps] = useState<ApplicationItem[]>([]);
   const [jobMap, setJobMap] = useState<Record<string, JobItem>>({});
   const [viewMode, setViewMode] = useState<"board" | "table">("board");
@@ -128,24 +134,27 @@ export default function TrackerPage() {
 
   return (
     <StudioShell
-      title="Pipeline Tracker"
-      subtitle="Human-controlled application board and stage history across every interview milestone"
+      title={tx("Pipeline Tracker", "आवेदन पाइपलाइन")}
+      subtitle={tx(
+        "Human-controlled application board and stage history across every interview milestone",
+        "हर इंटरव्यू चरण के लिए नियंत्रित आवेदन बोर्ड और इतिहास"
+      )}
       fullWidth
       actions={
         <Link
           href="/discover"
           className="inline-flex items-center gap-1.5 rounded-xl bg-[#0f172a] px-3.5 py-1.5 text-[12px] font-medium text-white hover:bg-[#1e293b]"
         >
-          Browse Jobs
+          {tx("Browse Jobs", "नौकरियाँ देखें")}
         </Link>
       }
     >
       {/* Top 4 Telemetry Cards */}
       <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatTile label="Total Tracked" value={counts.total} icon={Briefcase} accent="slate" loading={loading} />
-        <StatTile label="Saved & Draft" value={counts.draft} icon={Sparkles} accent="indigo" loading={loading} />
-        <StatTile label="Active & Interviewing" value={counts.active} icon={Briefcase} accent="amber" loading={loading} />
-        <StatTile label="Offers Received" value={counts.offer} icon={CheckCircle2} accent="emerald" loading={loading} />
+        <StatTile label={tx("Total Tracked", "कुल ट्रैक")} value={counts.total} icon={Briefcase} accent="slate" loading={loading} />
+        <StatTile label={tx("Saved & Draft", "सहेजे गए और ड्राफ्ट")} value={counts.draft} icon={Sparkles} accent="indigo" loading={loading} />
+        <StatTile label={tx("Active & Interviewing", "सक्रिय और साक्षात्कार")} value={counts.active} icon={Briefcase} accent="amber" loading={loading} />
+        <StatTile label={tx("Offers Received", "प्राप्त ऑफ़र")} value={counts.offer} icon={CheckCircle2} accent="emerald" loading={loading} />
       </div>
 
       {error && <Banner tone="error" message={error} onClose={() => setError(null)} className="mb-4" />}
@@ -160,7 +169,7 @@ export default function TrackerPage() {
               !stageFilter ? "bg-[#0f172a] text-white" : "bg-[#f8fafc] text-[#475569] ring-1 ring-[#e2e8f0]"
             }`}
           >
-            All ({apps.length})
+            {tx("All", "सभी")} ({apps.length})
           </button>
           {["draft", "shortlisted", "applied", "phone_screen", "offer"].map((st) => (
             <button
@@ -183,7 +192,7 @@ export default function TrackerPage() {
             onClick={() => setViewMode("board")}
             className="atoms-segmented-btn inline-flex items-center gap-1.5 text-[12px]"
           >
-            <LayoutGrid className="h-3.5 w-3.5" /> Board
+            <LayoutGrid className="h-3.5 w-3.5" /> {tx("Board", "बोर्ड")}
           </button>
           <button
             type="button"
@@ -191,7 +200,7 @@ export default function TrackerPage() {
             onClick={() => setViewMode("table")}
             className="atoms-segmented-btn inline-flex items-center gap-1.5 text-[12px]"
           >
-            <List className="h-3.5 w-3.5" /> Table
+            <List className="h-3.5 w-3.5" /> {tx("Table", "तालिका")}
           </button>
         </div>
       </div>
@@ -205,9 +214,12 @@ export default function TrackerPage() {
       ) : visibleApps.length === 0 ? (
         <EmptyState
           icon={Briefcase}
-          title="Your application pipeline is empty"
-          description="Open any role in Job Discovery or ML Matches and click Track to start managing your stages here."
-          actionLabel="Discover Opportunities"
+          title={tx("Your application pipeline is empty", "आपकी आवेदन पाइपलाइन खाली है")}
+          description={tx(
+            "Open any role in Job Discovery or ML Matches and click Track to start managing your stages here.",
+            "नौकरी खोज या ML मैच में कोई भी पद खोलें और यहाँ ट्रैक करने के लिए 'ट्रैक करें' दबाएँ।"
+          )}
+          actionLabel={tx("Discover Opportunities", "अवसर खोजें")}
           actionHref="/discover"
         />
       ) : viewMode === "board" ? (
@@ -220,7 +232,7 @@ export default function TrackerPage() {
                 <div className="mb-3 flex items-center justify-between px-1">
                   <div className="flex items-center gap-2">
                     <span className={`h-2 w-2 rounded-full ${col.dot}`} />
-                    <span className="text-[13px] font-semibold text-[#0f172a]">{col.label}</span>
+                    <span className="text-[13px] font-semibold text-[#0f172a]">{tx(col.label, col.labelHi)}</span>
                   </div>
                   <span className="tnum rounded-md bg-white px-2 py-0.5 font-mono text-[11px] font-semibold text-[#475569] ring-1 ring-[#e2e8f0]">
                     {colApps.length}
@@ -230,7 +242,7 @@ export default function TrackerPage() {
                 <div className="space-y-2.5">
                   {colApps.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-[#cbd5e1] px-3 py-6 text-center text-[11.5px] text-[#64748b]">
-                      No items in stage
+                      {tx("No items in stage", "इस चरण में कोई आवेदन नहीं")}
                     </div>
                   ) : (
                     colApps.map((app) => {
@@ -274,7 +286,7 @@ export default function TrackerPage() {
                                   value={noteDraft}
                                   onChange={(e) => setNoteDraft(e.target.value)}
                                   className="studio-input py-1 text-[11.5px]"
-                                  placeholder="Add interview note..."
+                                  placeholder={tx("Add interview note...", "इंटरव्यू नोट जोड़ें...")}
                                 />
                                 <button
                                   onClick={() => saveNotes(app.id)}
@@ -291,7 +303,7 @@ export default function TrackerPage() {
                               </div>
                             ) : (
                               <div className="flex items-center justify-between gap-2 text-[11.5px] text-[#475569]">
-                                <span className="truncate">{app.notes || "Add a note..."}</span>
+                                <span className="truncate">{app.notes || tx("Add a note...", "नोट जोड़ें...")}</span>
                                 <div className="flex shrink-0 items-center gap-1">
                                   <button
                                     onClick={() => {
@@ -333,11 +345,11 @@ export default function TrackerPage() {
           <table className="w-full min-w-[700px] text-left text-[13px]">
             <thead className="border-b border-[#e5e7eb] bg-[#f8fafc] font-mono text-[11px] uppercase text-[#64748b]">
               <tr>
-                <th className="px-4 py-3">Role &amp; Company</th>
-                <th className="px-4 py-3">Stage</th>
-                <th className="px-4 py-3">Applied</th>
-                <th className="px-4 py-3">Notes</th>
-                <th className="px-4 py-3 text-right">Action</th>
+                <th className="px-4 py-3">{tx("Role & Company", "पद और कंपनी")}</th>
+                <th className="px-4 py-3">{tx("Stage", "चरण")}</th>
+                <th className="px-4 py-3">{tx("Applied", "आवेदन तिथि")}</th>
+                <th className="px-4 py-3">{tx("Notes", "नोट्स")}</th>
+                <th className="px-4 py-3 text-right">{tx("Action", "कार्रवाई")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#f1f5f9]">
@@ -413,7 +425,7 @@ export default function TrackerPage() {
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 rounded-lg border border-[#e2e8f0] bg-white px-2.5 py-1 text-[11.5px] font-medium text-[#0f172a] hover:border-[#cbd5e1]"
                         >
-                          Apply <ExternalLink className="h-3 w-3" />
+                          {tx("Apply", "आवेदन")} <ExternalLink className="h-3 w-3" />
                         </a>
                       )}
                     </td>

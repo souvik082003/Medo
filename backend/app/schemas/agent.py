@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class AgentChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
     conversation_id: Optional[uuid.UUID] = None
+    language: Literal["en", "hi"] = "en"
 
 
 class AgentChatResponse(BaseModel):

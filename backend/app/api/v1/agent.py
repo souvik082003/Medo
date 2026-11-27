@@ -14,7 +14,7 @@ from ...core.database import get_db
 from ...core.exceptions import AppError
 from ...core.observability import trace_stage
 from ...core.rate_limit import rate_limit_dependency
-from ...models import Conversation, Message, User
+from ...models import AgentMemory, ApprovalRequest, Conversation, Message, User
 from ...schemas.agent import (
     AgentChatRequest,
     AgentChatResponse,
@@ -66,6 +66,16 @@ def agent_chat(
     )
     db.flush()
 
+    recent_msgs = list(
+        db.scalars(
+            select(Message)
+            .where(Message.conversation_id == conv.id, Message.user_id == current_user.id)
+            .order_by(Message.created_at.desc())
+            .limit(8)
+        ).all()
+    )
+    history = [{"role": m.role, "content": m.content} for m in reversed(recent_msgs) if m.content]
+
     with trace_stage("agent.orchestrator", message_len=len(payload.message)):
         res = run_career_orchestrator(
             db,
@@ -73,6 +83,8 @@ def agent_chat(
             payload.message.strip(),
             thread_id=conv.thread_id,
             conversation_id=conv.id,
+            history=history[:-1],  # exclude just-inserted current user turn
+            language=payload.language,
             settings=get_settings(),
         )
 
@@ -156,3 +168,32 @@ def get_conversation(
         updated_at=conv.updated_at,
         messages=[MessageResponse.model_validate(m) for m in msgs],
     )
+
+
+@router.delete("/conversations/{conversation_id}", status_code=204)
+def delete_conversation(
+    conversation_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> None:
+    """Delete a user-owned conversation and its messages while preserving audit/memory refs cleanly."""
+    conv = db.scalar(
+        select(Conversation).where(
+            Conversation.id == conversation_id,
+            Conversation.user_id == current_user.id,
+        )
+    )
+    if conv is None:
+        raise AppError("CONVERSATION_NOT_FOUND", "Conversation not found.", status_code=404)
+
+    for mem in db.scalars(
+        select(AgentMemory).where(AgentMemory.source_conversation_id == conv.id)
+    ).all():
+        mem.source_conversation_id = None
+    for ap in db.scalars(
+        select(ApprovalRequest).where(ApprovalRequest.conversation_id == conv.id)
+    ).all():
+        ap.conversation_id = None
+
+    db.delete(conv)
+    db.commit()

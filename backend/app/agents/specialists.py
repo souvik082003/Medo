@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import re
-import uuid
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -56,13 +55,16 @@ def run_profile_intelligence_agent(executor: ToolExecutor, user_message: str) ->
     follow_ups: list[str] = []
     if resume_res.ok and resume_res.data:
         for gap in resume_res.data.get("missing_information", []):
-            follow_ups.append(f"Please update: {gap}")
+            follow_ups.append(f"Update profile: {gap}")
     if prof_res.ok and prof_res.data and not prof_res.data.get("preferred_roles"):
-        follow_ups.append("What target job titles are you prioritizing?")
+        follow_ups.append("Set my preferred target job titles")
 
+    skills_count = (resume_res.data or {}).get("skill_count", 0)
+    comp_pct = int((resume_res.data or {}).get("completeness_score", 0) * 100)
+    top_sk = ", ".join((resume_res.data or {}).get("top_skills", [])[:5])
     summary = (
-        f"Profile completeness {int((resume_res.data or {}).get('completeness_score', 0) * 100)}%, "
-        f"{(resume_res.data or {}).get('skill_count', 0)} verified skills."
+        f"Profile completeness **{comp_pct}%** with **{skills_count} verified skills**"
+        + (f" ({top_sk})." if top_sk else ".")
         if ok
         else "Could not inspect candidate profile."
     )
@@ -82,16 +84,21 @@ def run_job_discovery_agent(executor: ToolExecutor, user_message: str) -> Specia
     work_mode = _extract_work_mode(user_message)
     res = executor.execute(
         "search_jobs",
-        {"query": user_message[:250], "region": region, "work_mode": work_mode, "limit": 10},
+        {"query": user_message[:250], "region": region, "work_mode": work_mode, "limit": 8},
     )
     jobs = (res.data or {}).get("jobs", []) if res.ok else []
-    summary = f"Found {len(jobs)} normalized job opportunities" + (f" in {region}" if region else "") + "."
+    summary = (
+        f"Retrieved **{len(jobs)}** hybrid-scored opportunities" + (f" filtered by **{region}**" if region else "") + "."
+    )
     return SpecialistOutput(
         agent_name="job_discovery_agent",
         status_update="Searching job sources",
         success=res.ok,
         summary=summary,
         tool_results=[res],
+        follow_up_questions=["Rank my top compatible roles", "Analyze missing skill gaps across these jobs"]
+        if jobs
+        else ["Broaden job search to Global Remote roles"],
     )
 
 
@@ -102,7 +109,7 @@ def run_job_matching_agent(executor: ToolExecutor, user_message: str) -> Special
         res = executor.execute("calculate_job_match", {"job_id": job_uuid})
         data = res.data or {}
         summary = (
-            f"Compatibility {round(data.get('compatibility_probability', 0) * 100)}% for {data.get('title', 'job')}."
+            f"Calibrated compatibility **{round(data.get('compatibility_probability', 0) * 100)}%** for **{data.get('title', 'job')}** at {data.get('company', 'Company')}."
             if res.ok
             else f"Job match failed: {res.error}"
         )
@@ -112,12 +119,17 @@ def run_job_matching_agent(executor: ToolExecutor, user_message: str) -> Special
             success=res.ok,
             summary=summary,
             tool_results=[res],
+            follow_up_questions=[f"Tailor my resume for job {job_uuid}", f"Draft cover letter for job {job_uuid}"],
         )
 
-    res = executor.execute("rank_jobs", {"limit": 10})
+    res = executor.execute("rank_jobs", {"limit": 6})
     ranked = (res.data or {}).get("ranked_jobs", []) if res.ok else []
+    top_line = ""
+    if ranked:
+        best = ranked[0]
+        top_line = f" Top match: **{best['title']}** @ {best['company']} ({round(best['compatibility_probability'] * 100)}% fit)."
     summary = (
-        f"Ranked {len(ranked)} jobs using {(res.data or {}).get('model_version', 'LTR')}."
+        f"Ranked **{len(ranked)}** jobs via `{((res.data or {}).get('model_version', 'LTR'))}`.{top_line}"
         if res.ok
         else f"Ranking failed: {res.error}"
     )
@@ -127,6 +139,7 @@ def run_job_matching_agent(executor: ToolExecutor, user_message: str) -> Special
         success=res.ok,
         summary=summary,
         tool_results=[res],
+        follow_up_questions=["Draft cover letter for my top match", "Identify priority skill gaps for top roles"],
     )
 
 
@@ -140,8 +153,8 @@ def run_career_advisor_agent(executor: ToolExecutor, user_message: str) -> Speci
     missing = (gap_res.data or {}).get("missing_skills", []) if gap_res.ok else []
     top_mkt = [s["skill"] for s in (trend_res.data or {}).get("top_skills", [])[:5]] if trend_res.ok else []
     summary = (
-        f"Identified {len(missing)} skill gaps ({', '.join(missing[:4]) or 'none'}). "
-        f"Top market demand: {', '.join(top_mkt) or 'no indexed jobs yet'}."
+        f"Detected **{len(missing)} skill gaps** ({', '.join(missing[:4]) or 'none'}). "
+        f"Top market demand: **{', '.join(top_mkt) or 'no indexed jobs yet'}**."
     )
     return SpecialistOutput(
         agent_name="career_advisor_agent",
@@ -149,23 +162,24 @@ def run_career_advisor_agent(executor: ToolExecutor, user_message: str) -> Speci
         success=gap_res.ok and trend_res.ok,
         summary=summary,
         tool_results=[gap_res, trend_res, kb_res],
+        follow_up_questions=["Search open roles matching my core strengths", "Build an upskilling focus plan for missing skills"],
     )
 
 
 def run_application_assistant_agent(executor: ToolExecutor, user_message: str) -> SpecialistOutput:
-    """Prepare resume tailoring, cover letters, or application tracking—blocking auto-submit behind approval."""
+    """Prepare resume tailoring, cover letters, interview prep, or tracked submissions behind HITL gate."""
     job_uuid = _extract_job_uuid(user_message)
     tl = user_message.lower()
-    if not job_uuid:
-        return SpecialistOutput(
-            agent_name="application_assistant_agent",
-            status_update="Preparing application guidance",
-            success=True,
-            summary="Specify a job ID to tailor your resume, draft a cover letter, or update application tracking.",
-            follow_up_questions=["Which job ID would you like to tailor or track?"],
-        )
 
     if any(k in tl for k in ("apply", "submit", "send email", "send application")):
+        if not job_uuid:
+            return SpecialistOutput(
+                agent_name="application_assistant_agent",
+                status_update="Preparing application guidance",
+                success=True,
+                summary="Select a specific job or pass its Job ID before requesting an external application submission.",
+                follow_up_questions=["Rank my top compatible jobs"],
+            )
         res = executor.execute("track_application", {"job_id": job_uuid, "action": "submit_external"})
         pending = res.data if (res.ok and (res.data or {}).get("approval_required")) else None
         return SpecialistOutput(
@@ -177,23 +191,56 @@ def run_application_assistant_agent(executor: ToolExecutor, user_message: str) -
             pending_approval=pending,
         )
 
+    # Auto-resolve top target job from search or ranking when user did not pass a literal UUID
+    resolved_tools: list[ToolExecutionResult] = []
+    if not job_uuid:
+        search_res = executor.execute("search_jobs", {"query": user_message[:200], "limit": 3})
+        resolved_tools.append(search_res)
+        jobs = (search_res.data or {}).get("jobs", []) if search_res.ok else []
+        if jobs:
+            job_uuid = jobs[0]["id"]
+        else:
+            rank_res = executor.execute("rank_jobs", {"limit": 1})
+            resolved_tools.append(rank_res)
+            ranked = (rank_res.data or {}).get("ranked_jobs", []) if rank_res.ok else []
+            if ranked:
+                job_uuid = ranked[0]["job_id"]
+
+    if not job_uuid:
+        return SpecialistOutput(
+            agent_name="application_assistant_agent",
+            status_update="Preparing application guidance",
+            success=True,
+            summary="No target jobs are indexed yet. Sync live roles in Job Discovery first so I can tailor your resume or draft a cover letter.",
+            tool_results=resolved_tools,
+            follow_up_questions=["Find ML Engineer remote jobs", "Analyze my resume strengths"],
+        )
+
     if "cover letter" in tl:
         res = executor.execute("generate_cover_letter", {"job_id": job_uuid})
         return SpecialistOutput(
             agent_name="application_assistant_agent",
             status_update="Drafting cover letter",
             success=res.ok,
-            summary="Generated grounded cover letter draft for review." if res.ok else (res.error or "Failed"),
-            tool_results=[res],
+            summary="Generated grounded cover letter draft below for your review." if res.ok else (res.error or "Failed"),
+            tool_results=[*resolved_tools, res],
+            follow_up_questions=[f"Tailor my resume for job {job_uuid}", "Prepare technical interview topics for this role"],
         )
 
-    res = executor.execute("tailor_resume", {"job_id": job_uuid})
+    tailor_res = executor.execute("tailor_resume", {"job_id": job_uuid})
+    results_out = [*resolved_tools, tailor_res]
+    if any(k in tl for k in ("interview", "prep", "question", "pitch")):
+        kb_res = executor.execute("search_career_knowledge", {"query": user_message[:250], "limit": 3})
+        results_out.append(kb_res)
+
+    title = (tailor_res.data or {}).get("title", "target role") if tailor_res.ok else "target role"
     return SpecialistOutput(
         agent_name="application_assistant_agent",
-        status_update="Preparing resume tailoring plan",
-        success=res.ok,
-        summary="Generated verified resume tailoring plan." if res.ok else (res.error or "Failed"),
-        tool_results=[res],
+        status_update="Preparing resume tailoring & prep plan",
+        success=tailor_res.ok,
+        summary=f"Prepared verified tailoring & interview focus plan for **{title}**." if tailor_res.ok else (tailor_res.error or "Failed"),
+        tool_results=results_out,
+        follow_up_questions=[f"Draft cover letter for job {job_uuid}", "What skill gaps should I study first?"],
     )
 
 
@@ -232,6 +279,7 @@ def run_memory_agent(executor: ToolExecutor, user_message: str) -> SpecialistOut
         agent_name="memory_agent",
         status_update="Retrieving & updating semantic memory",
         success=res.ok,
-        summary=f"Memory sync ({', '.join(notes) or 'read-only'}); retrieved {len(relevant)} semantic memories.",
+        summary=f"Memory sync ({', '.join(notes) or 'read-only'}); loaded **{len(relevant)}** persistent memory rules.",
         tool_results=[res],
+        follow_up_questions=["Find jobs matching my updated preferences", "Rank compatible roles now"],
     )

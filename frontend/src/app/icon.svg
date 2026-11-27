@@ -1,0 +1,26 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="2" y1="2" x2="38" y2="38" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#090D18" />
+      <stop offset="52%" stop-color="#172554" />
+      <stop offset="100%" stop-color="#3B5BFF" />
+    </linearGradient>
+    <linearGradient id="wl" x1="9" y1="10" x2="22" y2="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#DBEAFE" />
+    </linearGradient>
+    <linearGradient id="wr" x1="20" y1="11" x2="31" y2="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#93C5FD" />
+      <stop offset="100%" stop-color="#38BDF8" />
+    </linearGradient>
+  </defs>
+  <rect width="40" height="40" rx="10.5" fill="url(#bg)" />
+  <path
+    d="M20 22.8L27.4 12.1C28.15 11.02 29.85 11.55 29.85 12.86V27.6C29.85 28.43 29.18 29.1 28.35 29.1H25.75C24.92 29.1 24.25 28.43 24.25 27.6V20.9L21.05 25.45C20.54 26.17 19.46 26.17 18.95 25.45L20 22.8Z"
+    fill="url(#wr)"
+  />
+  <path
+    d="M10.15 27.6V12.86C10.15 11.55 11.85 11.02 12.6 12.1L20 22.8L21.9 25.5C21.06 26.6 19.34 26.62 18.47 25.54L15.75 21.6V27.6C15.75 28.43 15.08 29.1 14.25 29.1H11.65C10.82 29.1 10.15 28.43 10.15 27.6Z"
+    fill="url(#wl)"
+  />
+</svg>

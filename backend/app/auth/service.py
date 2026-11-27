@@ -3,13 +3,13 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..core.config import Settings, get_settings
 from ..core.exceptions import AppError
 from ..core.security import create_access_token, hash_password, verify_password
-from ..models import AuditLog, CandidateProfile, User, UserPreference, UserRole
+from ..models import AuditLog, CandidateProfile, Job, User, UserPreference, UserRole
 from ..schemas.auth import TokenResponse, UserLoginRequest, UserRegisterRequest, UserResponse
 
 
@@ -197,9 +197,16 @@ def demo_login_user(
             settings=cfg,
         )
         emb = EmbeddingService(cfg)
-        JobIngestionPipeline(db, embedding_service=emb).run_connector(
-            DemoDatasetConnector(settings=cfg), keywords=[], limit=25
+        existing_real_jobs = (
+            db.scalar(
+                select(func.count(Job.id)).where(Job.source_name != "demo_dataset", Job.is_expired.is_(False))
+            )
+            or 0
         )
+        if existing_real_jobs == 0:
+            JobIngestionPipeline(db, embedding_service=emb).run_connector(
+                DemoDatasetConnector(settings=cfg), keywords=[], limit=25
+            )
         ensure_public_knowledge_seeded(db, settings=cfg)
         compute_matches_for_user(db, user, explain_with_llm=False, limit=10, settings=cfg)
 

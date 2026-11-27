@@ -17,9 +17,15 @@ from .normalizer import RawJobRecord
 
 
 def _strip_html(raw_html: str) -> str:
-    """Convert HTML job descriptions to clean single-spaced plain text."""
-    text = html.unescape(re.sub(r"<[^>]+>", " ", raw_html or ""))
-    return re.sub(r"\s+", " ", text).strip()
+    """Unescape HTML entities first, preserve section/list structure, and strip all tags cleanly."""
+    s = html.unescape(html.unescape(raw_html or ""))
+    s = re.sub(r"<(br|hr)\s*/?>", "\n", s, flags=re.I)
+    s = re.sub(r"</(p|div|section|article|h[1-6]|tr|ul|ol)>", "\n", s, flags=re.I)
+    s = re.sub(r"<li[^>]*>", "\n- ", s, flags=re.I)
+    s = re.sub(r"<[^>]+>", " ", s)
+    s = re.sub(r"\s*Find Jobs in [^\n]*on Arbeitnow\s*$", "", s, flags=re.I)
+    lines = [re.sub(r"[ \t]+", " ", ln).strip() for ln in s.splitlines()]
+    return "\n".join(ln for ln in lines if ln).strip()
 
 
 _STOPWORDS = {"and", "or", "the", "for", "with", "in", "on", "to", "of", "a", "an", "jobs", "role", "roles"}

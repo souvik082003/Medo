@@ -144,6 +144,7 @@ def search_jobs(
         job_type=payload.job_type,
         min_salary_usd_eq=payload.min_salary_usd_eq,
         location_contains=payload.location_contains,
+        description_contains=payload.description_contains,
         source_name=payload.source_name,
     )
     items, total = retriever.search(

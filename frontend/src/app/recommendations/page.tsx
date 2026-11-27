@@ -6,8 +6,10 @@ import { ArrowUpRight, Bookmark, Briefcase, RefreshCw, Search, Sparkles, Target,
 import { StudioShell } from "@/components/StudioShell";
 import { Banner, EmptyState, StatTile } from "@/components/ui";
 import { apiFetch, RecommendationItem } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 
 export default function RecommendationsPage() {
+  const { tx } = useLanguage();
   const [items, setItems] = useState<RecommendationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [textFilter, setTextFilter] = useState("");
@@ -45,8 +47,8 @@ export default function RecommendationsPage() {
       });
       setMsg(
         signal_type === "shortlist"
-          ? "Shortlisted job and recorded explicit ranking feedback."
-          : "Dismissed job from recommendations."
+          ? tx("Shortlisted job and recorded explicit ranking feedback.", "नौकरी शॉर्टलिस्ट की गई और रैंकिंग फ़ीडबैक सहेजा गया।")
+          : tx("Dismissed job from recommendations.", "सिफ़ारिशों से नौकरी हटाई गई।")
       );
       if (signal_type === "dismiss") {
         setItems((prev) => prev.filter((r) => r.job.id !== jobId));
@@ -96,8 +98,11 @@ export default function RecommendationsPage() {
 
   return (
     <StudioShell
-      title="ML Matches"
-      subtitle="Calibrated compatibility probabilities, pairwise Learning-to-Rank scores, and skill-overlap proof"
+      title={tx("ML Matches", "ML मैच")}
+      subtitle={tx(
+        "Calibrated compatibility probabilities, pairwise Learning-to-Rank scores, and skill-overlap proof",
+        "कैलिब्रेटेड संगतता स्कोर, पेयरवाइज़ LTR रैंकिंग और कौशल मिलान प्रमाण"
+      )}
       actions={
         <button
           onClick={() => loadRecommendations(true)}
@@ -105,32 +110,32 @@ export default function RecommendationsPage() {
           className="inline-flex items-center gap-1.5 rounded-xl bg-[#0f172a] px-3.5 py-1.5 text-[12.5px] font-medium text-white shadow-xs transition hover:bg-[#1e293b] disabled:opacity-60"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-          Recompute Ranking
+          {tx("Recompute Ranking", "रैंकिंग फिर से निकालें")}
         </button>
       }
     >
       {/* Top 3 Telemetry Cards */}
       <div className="mb-5 grid gap-4 sm:grid-cols-3">
         <StatTile
-          label="Ranked Opportunities"
+          label={tx("Ranked Opportunities", "रैंक किए गए अवसर")}
           value={items.length}
-          hint="Scored by 12-feature compatibility"
+          hint={tx("Scored by 12-feature compatibility", "12-फ़ीचर संगतता द्वारा स्कोर")}
           icon={Sparkles}
           accent="indigo"
           loading={loading}
         />
         <StatTile
-          label="Strong Matches (70%+)"
+          label={tx("Strong Matches (70%+)", "मजबूत मैच (70%+)")}
           value={strongCount}
-          hint="High skill & semantic overlap"
+          hint={tx("High skill & semantic overlap", "उच्च कौशल और सिमेंटिक मिलान")}
           icon={Target}
           accent="emerald"
           loading={loading}
         />
         <StatTile
-          label="Average Fit Score"
+          label={tx("Average Fit Score", "औसत फिट स्कोर")}
           value={`${avgFit}%`}
-          hint="Calibrated probability across results"
+          hint={tx("Calibrated probability across results", "परिणामों में कैलिब्रेटेड संगतता")}
           icon={Briefcase}
           accent="amber"
           loading={loading}
@@ -144,7 +149,7 @@ export default function RecommendationsPage() {
           <input
             value={textFilter}
             onChange={(e) => setTextFilter(e.target.value)}
-            placeholder="Filter by role, company, or matched skill..."
+            placeholder={tx("Filter by role, company, or matched skill...", "रोल, कंपनी या कौशल से फ़िल्टर करें...")}
             className="studio-input pl-9"
           />
         </div>
@@ -154,29 +159,29 @@ export default function RecommendationsPage() {
             onChange={(e) => setRegionFilter(e.target.value)}
             className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] px-3 py-2 text-[12px] text-[#0f172a] outline-none"
           >
-            <option value="">All Regions</option>
-            <option value="IN">India</option>
-            <option value="GLOBAL">Global Remote</option>
-            <option value="US">US</option>
-            <option value="EU">Europe</option>
-            <option value="UK">UK</option>
+            <option value="">{tx("All Regions", "सभी क्षेत्र")}</option>
+            <option value="IN">{tx("India", "भारत")}</option>
+            <option value="GLOBAL">{tx("Global Remote", "ग्लोबल रिमोट")}</option>
+            <option value="US">{tx("US", "अमेरिका")}</option>
+            <option value="EU">{tx("Europe", "यूरोप")}</option>
+            <option value="UK">{tx("UK", "यूके")}</option>
           </select>
           <select
             value={minFit}
             onChange={(e) => setMinFit(Number(e.target.value))}
             className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] px-3 py-2 text-[12px] text-[#0f172a] outline-none"
           >
-            <option value={0}>Any Fit %</option>
-            <option value={50}>50%+ Fit</option>
-            <option value={70}>70%+ Fit</option>
+            <option value={0}>{tx("Any Fit %", "कोई भी फिट %")}</option>
+            <option value={50}>{tx("50%+ Fit", "50%+ फिट")}</option>
+            <option value={70}>{tx("70%+ Fit", "70%+ फिट")}</option>
           </select>
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as "compatibility" | "ltr")}
             className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] px-3 py-2 text-[12px] text-[#0f172a] outline-none"
           >
-            <option value="compatibility">Sort: Compatibility %</option>
-            <option value="ltr">Sort: LTR Score</option>
+            <option value="compatibility">{tx("Sort: Compatibility %", "क्रम: संगतता %")}</option>
+            <option value="ltr">{tx("Sort: LTR Score", "क्रम: LTR स्कोर")}</option>
           </select>
         </div>
       </div>
@@ -193,9 +198,12 @@ export default function RecommendationsPage() {
       ) : visibleItems.length === 0 ? (
         <EmptyState
           icon={Sparkles}
-          title="No matching recommendations"
-          description="Sync live jobs in Discovery and upload a resume in Resume Studio to compute calibrated compatibility scores."
-          actionLabel="Discover Live Jobs"
+          title={tx("No matching recommendations", "कोई मिलान वाली सिफ़ारिश नहीं मिली")}
+          description={tx(
+            "Sync live jobs in Discovery and upload a resume in Resume Studio to compute calibrated compatibility scores.",
+            "डिस्कवरी में लाइव नौकरियाँ सिंक करें और संगतता स्कोर निकालने के लिए रिज्यूमे स्टूडियो में रिज्यूमे अपलोड करें।"
+          )}
+          actionLabel={tx("Discover Live Jobs", "लाइव नौकरियाँ खोजें")}
           actionHref="/discover"
         />
       ) : (
@@ -260,7 +268,9 @@ export default function RecommendationsPage() {
                   <div className="flex shrink-0 flex-col justify-between gap-3 rounded-2xl border border-[#e5e7eb] bg-[#f8fafc] p-4 lg:w-64">
                     <div>
                       <div className="flex items-baseline justify-between">
-                        <span className="font-mono text-[10.5px] font-semibold uppercase text-[#64748b]">Fit Probability</span>
+                        <span className="font-mono text-[10.5px] font-semibold uppercase text-[#64748b]">
+                          {tx("Fit Probability", "फिट संभावना")}
+                        </span>
                         <span className="tnum font-mono text-2xl font-semibold text-[#3b5bff]">{pct}%</span>
                       </div>
                       <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[#e2e8f0]">
@@ -280,17 +290,17 @@ export default function RecommendationsPage() {
                         onClick={() => sendSignal(r.job.id, "shortlist")}
                         className="inline-flex items-center gap-1 rounded-lg border border-[#e2e8f0] bg-white px-2.5 py-1.5 text-[11px] font-medium text-[#0f172a] hover:border-[#cbd5e1]"
                       >
-                        <Bookmark className="h-3 w-3" /> Save
+                        <Bookmark className="h-3 w-3" /> {tx("Save", "सहेजें")}
                       </button>
                       <button
                         onClick={() => trackDraft(r.job.id, r.job.title)}
                         className="inline-flex items-center gap-1 rounded-lg border border-[#e2e8f0] bg-white px-2.5 py-1.5 text-[11px] font-medium text-[#0f172a] hover:border-[#cbd5e1]"
                       >
-                        <Briefcase className="h-3 w-3" /> Track
+                        <Briefcase className="h-3 w-3" /> {tx("Track", "ट्रैक करें")}
                       </button>
                       <button
                         onClick={() => sendSignal(r.job.id, "dismiss")}
-                        title="Dismiss"
+                        title={tx("Dismiss", "हटाएँ")}
                         className="rounded-lg border border-[#e2e8f0] bg-white p-1.5 text-[#64748b] hover:border-red-200 hover:text-red-600"
                       >
                         <ThumbsDown className="h-3 w-3" />
@@ -299,7 +309,7 @@ export default function RecommendationsPage() {
                         href={`/jobs/${r.job.id}`}
                         className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-[#0f172a] px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-[#1e293b]"
                       >
-                        Inspect <ArrowUpRight className="h-3 w-3" />
+                        {tx("Inspect", "विवरण")} <ArrowUpRight className="h-3 w-3" />
                       </Link>
                     </div>
                   </div>

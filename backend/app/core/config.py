@@ -36,7 +36,7 @@ class Settings(BaseSettings):
         min_length=16,
     )
     jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60
+    access_token_expire_minutes: int = 1440
     rate_limit_per_minute: int = 120
     max_upload_size_bytes: int = 10 * 1024 * 1024  # 10 MB
 

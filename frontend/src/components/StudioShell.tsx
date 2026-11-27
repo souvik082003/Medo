@@ -12,7 +12,6 @@ import {
   FileText,
   GitBranch,
   Home,
-  Layers,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -25,44 +24,52 @@ import {
   Target,
   X,
 } from "lucide-react";
-import { clearAuthSession, getStoredUser, getToken, User } from "@/lib/api";
+import { MedoMark } from "@/components/MedoLogo";
+import { clearAuthSession, getStoredUser, getToken, isTokenExpired, User } from "@/lib/api";
+import { LanguageToggle, useLanguage } from "@/lib/i18n";
 
 const NAV_GROUPS = [
   {
-    label: "Command Center",
+    labelEn: "Command Center",
+    labelHi: "कमांड सेंटर",
     items: [
-      { href: "/", label: "Home", icon: Home },
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/assistant", label: "AI Orchestrator", icon: Bot },
+      { href: "/", labelEn: "Home", labelHi: "होम", icon: Home },
+      { href: "/dashboard", labelEn: "Dashboard", labelHi: "डैशबोर्ड", icon: LayoutDashboard },
+      { href: "/assistant", labelEn: "AI Orchestrator", labelHi: "AI ऑर्केस्ट्रेटर", icon: Bot },
     ],
   },
   {
-    label: "Opportunities",
+    labelEn: "Opportunities",
+    labelHi: "अवसर",
     items: [
-      { href: "/discover", label: "Job Discovery", icon: Search },
-      { href: "/recommendations", label: "ML Matches", icon: Sparkles },
-      { href: "/tracker", label: "Pipeline Tracker", icon: Briefcase },
+      { href: "/discover", labelEn: "Job Discovery", labelHi: "नौकरी खोजें", icon: Search },
+      { href: "/recommendations", labelEn: "ML Matches", labelHi: "ML मिलान", icon: Sparkles },
+      { href: "/tracker", labelEn: "Pipeline Tracker", labelHi: "आवेदन ट्रैकर", icon: Briefcase },
     ],
   },
   {
-    label: "Profile & Intelligence",
+    labelEn: "Profile & Intelligence",
+    labelHi: "प्रोफ़ाइल और विश्लेषण",
     items: [
-      { href: "/resume", label: "Resume Studio", icon: FileText },
-      { href: "/skills", label: "Skill Gaps", icon: Target },
-      { href: "/roadmap", label: "Career Roadmap", icon: GitBranch },
+      { href: "/resume", labelEn: "Resume Studio", labelHi: "रेज़्यूमे स्टूडियो", icon: FileText },
+      { href: "/skills", labelEn: "Skill Gaps", labelHi: "कौशल अंतर", icon: Target },
+      { href: "/roadmap", labelEn: "Career Roadmap", labelHi: "करियर रोडमैप", icon: GitBranch },
     ],
   },
   {
-    label: "Governance",
+    labelEn: "Governance",
+    labelHi: "सुरक्षा और नियंत्रण",
     items: [
-      { href: "/profile", label: "Preferences", icon: Settings },
-      { href: "/privacy", label: "Privacy & Memory", icon: ShieldCheck },
-      { href: "/onboarding", label: "Guided Setup", icon: Compass },
+      { href: "/profile", labelEn: "Preferences", labelHi: "प्राथमिकताएं", icon: Settings },
+      { href: "/privacy", labelEn: "Privacy & Memory", labelHi: "गोपनीयता और मेमोरी", icon: ShieldCheck },
+      { href: "/onboarding", labelEn: "Guided Setup", labelHi: "गाइडेड सेटअप", icon: Compass },
     ],
   },
 ];
 
-const QUICK_ROUTES = NAV_GROUPS.flatMap((g) => g.items.map((i) => ({ ...i, group: g.label })));
+const QUICK_ROUTES = NAV_GROUPS.flatMap((g) =>
+  g.items.map((i) => ({ ...i, groupEn: g.labelEn, groupHi: g.labelHi }))
+);
 
 export function StudioShell({
   title,
@@ -81,6 +88,7 @@ export function StudioShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { tx } = useLanguage();
   const [user, setUser] = useState<User | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -91,6 +99,11 @@ export function StudioShell({
     const tok = getToken();
     if (!tok) {
       router.replace("/auth");
+      return;
+    }
+    if (isTokenExpired(tok)) {
+      clearAuthSession();
+      router.replace("/auth?reason=expired");
       return;
     }
     setUser(getStoredUser());
@@ -122,7 +135,9 @@ export function StudioShell({
     .join("");
 
   const filteredRoutes = QUICK_ROUTES.filter((r) =>
-    `${r.label} ${r.group}`.toLowerCase().includes(cmdQuery.trim().toLowerCase())
+    `${r.labelEn} ${r.labelHi} ${r.groupEn} ${r.groupHi}`
+      .toLowerCase()
+      .includes(cmdQuery.trim().toLowerCase())
   );
 
   const sidebarBody = (compact: boolean) => (
@@ -130,14 +145,12 @@ export function StudioShell({
       <div className="space-y-5">
         <div className={`flex items-center ${compact ? "justify-center" : "justify-between px-2"}`}>
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#0f172a] to-[#3b5bff] text-white shadow-xs">
-              <Layers className="h-4 w-4" />
-            </div>
+            <MedoMark size={32} className="shadow-xs" />
             {!compact && (
               <div className="flex items-center gap-1.5">
-                <span className="text-[15px] font-semibold tracking-tight text-[#0f172a]">Medo</span>
+                <span className="text-[15.5px] font-bold tracking-tight text-[#0f172a]">Medo</span>
                 <span className="rounded-md bg-[#3b5bff]/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[#3b5bff]">
-                  STUDIO
+                  {tx("STUDIO", "स्टूडियो")}
                 </span>
               </div>
             )}
@@ -146,7 +159,7 @@ export function StudioShell({
             <button
               type="button"
               onClick={() => setCollapsed(true)}
-              title="Collapse sidebar"
+              title={tx("Collapse sidebar", "साइडबार छोटा करें")}
               className="hidden rounded-lg p-1 text-[#64748b] transition hover:bg-[#f1f5f9] hover:text-[#0f172a] lg:inline-flex"
             >
               <PanelLeftClose className="h-4 w-4" />
@@ -161,7 +174,7 @@ export function StudioShell({
             className="flex w-full items-center justify-between rounded-xl border border-[#e2e8f0] bg-[#f8fafc] px-3 py-1.5 text-[12px] text-[#64748b] transition hover:border-[#cbd5e1] hover:text-[#0f172a]"
           >
             <span className="flex items-center gap-2">
-              <Search className="h-3.5 w-3.5" /> Jump to...
+              <Search className="h-3.5 w-3.5" /> {tx("Jump to...", "तुरंत खोलें...")}
             </span>
             <kbd className="rounded border border-[#cbd5e1] bg-white px-1.5 py-0.5 font-mono text-[10px] text-[#64748b]">
               ⌘K
@@ -171,7 +184,7 @@ export function StudioShell({
           <button
             type="button"
             onClick={() => setCollapsed(false)}
-            title="Expand sidebar"
+            title={tx("Expand sidebar", "साइडबार खोलें")}
             className="mx-auto hidden rounded-lg border border-[#e2e8f0] p-2 text-[#64748b] transition hover:bg-[#f1f5f9] hover:text-[#0f172a] lg:flex"
           >
             <PanelLeftOpen className="h-4 w-4" />
@@ -180,15 +193,16 @@ export function StudioShell({
 
         <nav className="space-y-4">
           {NAV_GROUPS.map((group) => (
-            <div key={group.label}>
+            <div key={group.labelEn}>
               {!compact && (
                 <div className="mb-1 px-2.5 text-[10.5px] font-semibold uppercase tracking-wider text-[#94a3b8]">
-                  {group.label}
+                  {tx(group.labelEn, group.labelHi)}
                 </div>
               )}
               <div className="space-y-0.5">
                 {group.items.map((item) => {
                   const Icon = item.icon;
+                  const label = tx(item.labelEn, item.labelHi);
                   const active =
                     item.href === "/"
                       ? pathname === "/"
@@ -197,7 +211,7 @@ export function StudioShell({
                     <Link
                       key={item.href}
                       href={item.href}
-                      title={compact ? item.label : undefined}
+                      title={compact ? label : undefined}
                       onClick={() => setMobileOpen(false)}
                       className={`group flex items-center ${
                         compact ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"
@@ -213,7 +227,7 @@ export function StudioShell({
                             active ? "text-[#3b5bff]" : "text-[#64748b] group-hover:text-[#0f172a]"
                           }`}
                         />
-                        {!compact && <span>{item.label}</span>}
+                        {!compact && <span>{label}</span>}
                       </span>
                       {!compact && active && <span className="h-1.5 w-1.5 rounded-full bg-[#3b5bff]" />}
                     </Link>
@@ -246,7 +260,7 @@ export function StudioShell({
             {!compact && (
               <button
                 onClick={handleLogout}
-                title="Sign out"
+                title={tx("Sign out", "लॉग आउट")}
                 className="rounded-lg p-1.5 text-[#64748b] transition hover:bg-[#e2e8f0]/70 hover:text-[#0f172a]"
               >
                 <LogOut className="h-3.5 w-3.5" />
@@ -295,7 +309,7 @@ export function StudioShell({
                 autoFocus
                 value={cmdQuery}
                 onChange={(e) => setCmdQuery(e.target.value)}
-                placeholder="Jump to workspace page..."
+                placeholder={tx("Jump to workspace page...", "पेज खोजें...")}
                 className="flex-1 bg-transparent text-[13.5px] outline-none"
               />
               <button
@@ -321,10 +335,10 @@ export function StudioShell({
                   >
                     <span className="flex items-center gap-2.5 font-medium text-[#0f172a]">
                       <Icon className="h-4 w-4 text-[#3b5bff]" />
-                      {route.label}
+                      {tx(route.labelEn, route.labelHi)}
                     </span>
                     <span className="flex items-center gap-1 text-[11px] text-[#64748b]">
-                      {route.group} <ChevronRight className="h-3 w-3" />
+                      {tx(route.groupEn, route.groupHi)} <ChevronRight className="h-3 w-3" />
                     </span>
                   </button>
                 );
@@ -347,7 +361,7 @@ export function StudioShell({
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#64748b]">
                 <Link href="/dashboard" className="hover:text-[#0f172a]">
-                  Medo Studio
+                  {tx("Medo Studio", "मेडो स्टूडियो")}
                 </Link>
                 <ChevronRight className="h-3 w-3" />
                 <span className="truncate text-[#3b5bff]">{title}</span>
@@ -356,7 +370,10 @@ export function StudioShell({
               {subtitle && <p className="hidden truncate text-[12px] text-[#64748b] sm:block">{subtitle}</p>}
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">{actions}</div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <LanguageToggle />
+            {actions}
+          </div>
         </header>
 
         <main

@@ -6,12 +6,14 @@ import { Compass, Globe, Save, SlidersHorizontal } from "lucide-react";
 import { StudioShell } from "@/components/StudioShell";
 import { Banner } from "@/components/ui";
 import { apiFetch, ProfileBundle } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 
 const REGION_CODES = ["IN", "GLOBAL", "US", "EU", "UK", "SG"] as const;
 const WORK_MODE_OPTIONS = ["remote", "hybrid", "onsite"] as const;
 const JOB_TYPE_OPTIONS = ["full-time", "contract", "internship", "part-time"] as const;
 
 export default function ProfilePreferencesPage() {
+  const { tx } = useLanguage();
   const [roles, setRoles] = useState("");
   const [locations, setLocations] = useState("");
   const [regions, setRegions] = useState<string[]>(["IN", "GLOBAL"]);
@@ -71,7 +73,7 @@ export default function ProfilePreferencesPage() {
           career_goals: careerGoals || null,
         }),
       });
-      setMsg("Preferences saved and applied to ML compatibility scoring.");
+      setMsg(tx("Preferences saved and applied to ML compatibility scoring.", "प्राथमिकताएँ सहेजी गईं और ML स्कोरिंग में लागू कर दी गईं।"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save preferences");
     } finally {
@@ -81,14 +83,17 @@ export default function ProfilePreferencesPage() {
 
   return (
     <StudioShell
-      title="Preferences"
-      subtitle="Configure durable roles, target regions, work modes, compensation thresholds, and objectives"
+      title={tx("Preferences", "प्राथमिकताएँ")}
+      subtitle={tx(
+        "Configure durable roles, target regions, work modes, compensation thresholds, and objectives",
+        "पसंदीदा पद, लक्षित क्षेत्र, कार्य मोड, वेतन सीमा और करियर लक्ष्य सेट करें"
+      )}
       actions={
         <Link
           href="/onboarding"
           className="inline-flex items-center gap-1.5 rounded-xl border border-[#e2e8f0] bg-white px-3.5 py-1.5 text-[12px] font-medium text-[#0f172a] hover:border-[#cbd5e1]"
         >
-          <Compass className="h-3.5 w-3.5 text-[#3b5bff]" /> Guided Setup
+          <Compass className="h-3.5 w-3.5 text-[#3b5bff]" /> {tx("Guided Setup", "त्वरित सेटअप")}
         </Link>
       }
     >
@@ -101,12 +106,12 @@ export default function ProfilePreferencesPage() {
           <div className="atoms-card space-y-4 p-6">
             <div className="flex items-center gap-2 border-b border-[#f1f5f9] pb-3">
               <SlidersHorizontal className="h-4 w-4 text-[#3b5bff]" />
-              <h2 className="text-[15px] font-semibold text-[#0f172a]">Role &amp; Location Targeting</h2>
+              <h2 className="text-[15px] font-semibold text-[#0f172a]">{tx("Role & Location Targeting", "पद और स्थान लक्ष्य")}</h2>
             </div>
 
             <div>
               <label className="mb-1.5 block text-[12px] font-medium text-[#475569]">
-                Preferred Roles (comma-separated)
+                {tx("Preferred Roles (comma-separated)", "पसंदीदा पद (कॉमा से अलग)")}
               </label>
               <input
                 value={roles}
@@ -118,7 +123,7 @@ export default function ProfilePreferencesPage() {
 
             <div>
               <label className="mb-1.5 block text-[12px] font-medium text-[#475569]">
-                Preferred Locations (comma-separated)
+                {tx("Preferred Locations (comma-separated)", "पसंदीदा शहर (कॉमा से अलग)")}
               </label>
               <input
                 value={locations}
@@ -129,7 +134,7 @@ export default function ProfilePreferencesPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-[12px] font-medium text-[#475569]">Target Regions</label>
+              <label className="mb-1.5 block text-[12px] font-medium text-[#475569]">{tx("Target Regions", "लक्षित क्षेत्र")}</label>
               <div className="flex flex-wrap gap-1.5">
                 {REGION_CODES.map((code) => {
                   const active = regions.includes(code);
@@ -155,12 +160,12 @@ export default function ProfilePreferencesPage() {
           <div className="atoms-card space-y-4 p-6">
             <div className="flex items-center gap-2 border-b border-[#f1f5f9] pb-3">
               <Globe className="h-4 w-4 text-[#3b5bff]" />
-              <h2 className="text-[15px] font-semibold text-[#0f172a]">Work Style &amp; Compensation</h2>
+              <h2 className="text-[15px] font-semibold text-[#0f172a]">{tx("Work Style & Compensation", "कार्य शैली और वेतन")}</h2>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1.5 block text-[12px] font-medium text-[#475569]">Work Modes</label>
+                <label className="mb-1.5 block text-[12px] font-medium text-[#475569]">{tx("Work Modes", "कार्य मोड")}</label>
                 <div className="flex flex-wrap gap-1.5">
                   {WORK_MODE_OPTIONS.map((wm) => {
                     const active = workModes.includes(wm);
@@ -183,7 +188,7 @@ export default function ProfilePreferencesPage() {
               </div>
 
               <div>
-                <label className="mb-1.5 block text-[12px] font-medium text-[#475569]">Job Types</label>
+                <label className="mb-1.5 block text-[12px] font-medium text-[#475569]">{tx("Job Types", "नौकरी प्रकार")}</label>
                 <div className="flex flex-wrap gap-1.5">
                   {JOB_TYPE_OPTIONS.map((jt) => {
                     const active = jobTypes.includes(jt);
@@ -208,7 +213,7 @@ export default function ProfilePreferencesPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1.5 block text-[12px] font-medium text-[#475569]">Currency</label>
+                <label className="mb-1.5 block text-[12px] font-medium text-[#475569]">{tx("Currency", "मुद्रा")}</label>
                 <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="studio-input">
                   <option value="INR">INR (₹)</option>
                   <option value="USD">USD ($)</option>
@@ -218,7 +223,7 @@ export default function ProfilePreferencesPage() {
                 </select>
               </div>
               <div>
-                <label className="mb-1.5 block text-[12px] font-medium text-[#475569]">Min Annual Salary</label>
+                <label className="mb-1.5 block text-[12px] font-medium text-[#475569]">{tx("Min Annual Salary", "न्यूनतम वार्षिक वेतन")}</label>
                 <input
                   type="number"
                   value={minSalary}
@@ -231,7 +236,7 @@ export default function ProfilePreferencesPage() {
 
             <div>
               <label className="mb-1.5 block text-[12px] font-medium text-[#475569]">
-                Exclude Keywords (comma-separated)
+                {tx("Exclude Keywords (comma-separated)", "छोड़ने वाले शब्द (कॉमा से अलग)")}
               </label>
               <input
                 value={excludeKeywords}
@@ -242,13 +247,16 @@ export default function ProfilePreferencesPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-[12px] font-medium text-[#475569]">Career Goals</label>
+              <label className="mb-1.5 block text-[12px] font-medium text-[#475569]">{tx("Career Goals", "करियर लक्ष्य")}</label>
               <textarea
                 rows={3}
                 value={careerGoals}
                 onChange={(e) => setCareerGoals(e.target.value)}
                 className="studio-input"
-                placeholder="Describe target scope, engineering impact, or team stage..."
+                placeholder={tx(
+                  "Describe target scope, engineering impact, or team stage...",
+                  "लक्षित कार्यक्षेत्र, टीम चरण या तकनीकी प्रभाव लिखें..."
+                )}
               />
             </div>
           </div>
@@ -259,24 +267,24 @@ export default function ProfilePreferencesPage() {
           <div className="atoms-card sticky top-20 space-y-4 p-6">
             <div>
               <span className="font-mono text-[10.5px] font-semibold uppercase tracking-wider text-[#3b5bff]">
-                Active Configuration
+                {tx("Active Configuration", "सक्रिय कॉन्फ़िगरेशन")}
               </span>
-              <h3 className="mt-1 text-[15px] font-semibold text-[#0f172a]">Targeting Snapshot</h3>
+              <h3 className="mt-1 text-[15px] font-semibold text-[#0f172a]">{tx("Targeting Snapshot", "लक्ष्य सारांश")}</h3>
             </div>
 
             <div className="space-y-2.5 rounded-xl border border-[#e5e7eb] bg-[#f8fafc] p-3.5 text-[12px]">
               <div className="flex justify-between gap-2">
-                <span className="text-[#64748b]">Regions</span>
+                <span className="text-[#64748b]">{tx("Regions", "क्षेत्र")}</span>
                 <span className="font-mono font-semibold text-[#0f172a]">{regions.join(", ")}</span>
               </div>
               <div className="flex justify-between gap-2">
-                <span className="text-[#64748b]">Work Modes</span>
+                <span className="text-[#64748b]">{tx("Work Modes", "कार्य मोड")}</span>
                 <span className="font-mono font-medium capitalize text-[#0f172a]">{workModes.join(", ")}</span>
               </div>
               <div className="flex justify-between gap-2">
-                <span className="text-[#64748b]">Floor</span>
+                <span className="text-[#64748b]">{tx("Floor", "न्यूनतम सीमा")}</span>
                 <span className="tnum font-mono font-semibold text-emerald-700">
-                  {minSalary ? `${currency} ${Number(minSalary).toLocaleString()}` : "Any"}
+                  {minSalary ? `${currency} ${Number(minSalary).toLocaleString()}` : tx("Any", "कोई भी")}
                 </span>
               </div>
             </div>
@@ -286,7 +294,7 @@ export default function ProfilePreferencesPage() {
               disabled={saving}
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#3b5bff] px-4 py-2.5 text-[13px] font-medium text-white shadow-sm transition hover:bg-[#2948eb] disabled:opacity-60"
             >
-              <Save className="h-3.5 w-3.5" /> {saving ? "Saving..." : "Save & Apply Scoring"}
+              <Save className="h-3.5 w-3.5" /> {saving ? tx("Saving...", "सहेज रहा है...") : tx("Save & Apply Scoring", "सहेजें और स्कोरिंग में लागू करें")}
             </button>
           </div>
         </div>

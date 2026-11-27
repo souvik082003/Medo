@@ -6,6 +6,7 @@ import { ArrowRight, CheckCircle2, Search, Sparkles, Target } from "lucide-react
 import { StudioShell } from "@/components/StudioShell";
 import { StatTile } from "@/components/ui";
 import { apiFetch, JobItem, ProfileBundle, RecommendationItem } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 
 const BASELINE_DEMAND_SKILLS = [
   "Python",
@@ -23,6 +24,7 @@ const BASELINE_DEMAND_SKILLS = [
 ];
 
 export default function SkillGapPage() {
+  const { tx } = useLanguage();
   const [bundle, setBundle] = useState<ProfileBundle | null>(null);
   const [jobs, setJobs] = useState<JobItem[]>([]);
   const [recs, setRecs] = useState<RecommendationItem[]>([]);
@@ -60,39 +62,42 @@ export default function SkillGapPage() {
 
   return (
     <StudioShell
-      title="Skill-Gap Analysis"
-      subtitle="Verified candidate skills mapped against indexed job market requirements"
+      title={tx("Skill-Gap Analysis", "कौशल-अंतर विश्लेषण")}
+      subtitle={tx(
+        "Verified candidate skills mapped against indexed job market requirements",
+        "इंडेक्स की गई बाज़ार माँग के विरुद्ध सत्यापित उम्मीदवार कौशल"
+      )}
       actions={
         <Link
           href="/roadmap"
           className="inline-flex items-center gap-1.5 rounded-xl bg-[#0f172a] px-3.5 py-1.5 text-[12px] font-medium text-white hover:bg-[#1e293b]"
         >
-          View Career Roadmap <ArrowRight className="h-3.5 w-3.5" />
+          {tx("View Career Roadmap", "करियर रोडमैप देखें")} <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       }
     >
       {/* Top 3 Stat Tiles */}
       <div className="mb-5 grid gap-4 sm:grid-cols-3">
         <StatTile
-          label="Market Skill Coverage"
+          label={tx("Market Skill Coverage", "बाज़ार कौशल कवरेज")}
           value={`${coveragePct}%`}
-          hint={`Across ${jobs.length} indexed jobs`}
+          hint={tx(`Across ${jobs.length} indexed jobs`, `${jobs.length} इंडेक्स नौकरियों में`)}
           icon={Sparkles}
           accent="indigo"
           loading={loading}
         />
         <StatTile
-          label="Covered Core Skills"
+          label={tx("Covered Core Skills", "कवर मुख्य कौशल")}
           value={matched.length}
-          hint="Verified overlap with market demand"
+          hint={tx("Verified overlap with market demand", "बाज़ार माँग से सत्यापित मिलान")}
           icon={CheckCircle2}
           accent="emerald"
           loading={loading}
         />
         <StatTile
-          label="Priority Gaps"
+          label={tx("Priority Gaps", "प्राथमिकता कमियाँ")}
           value={missing.length}
-          hint="High-leverage upskilling targets"
+          hint={tx("High-leverage upskilling targets", "सीखने के प्रमुख लक्ष्य")}
           icon={Target}
           accent="amber"
           loading={loading}
@@ -103,8 +108,8 @@ export default function SkillGapPage() {
       <div className="atoms-card mb-6 p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-[14.5px] font-semibold text-[#0f172a]">Skill Coverage Distribution</h2>
-            <p className="text-[12px] text-[#64748b]">Click any skill badge below to discover open roles requiring it</p>
+            <h2 className="text-[14.5px] font-semibold text-[#0f172a]">{tx("Skill Coverage Distribution", "कौशल कवरेज वितरण")}</h2>
+            <p className="text-[12px] text-[#64748b]">{tx("Click any skill badge below to discover open roles requiring it", "संबंधित नौकरियाँ देखने के लिए नीचे किसी भी कौशल पर क्लिक करें")}</p>
           </div>
           <span className="tnum font-mono text-lg font-semibold text-[#3b5bff]">{coveragePct}%</span>
         </div>
@@ -118,16 +123,19 @@ export default function SkillGapPage() {
           <div className="mb-4 flex items-center justify-between border-b border-[#f1f5f9] pb-3">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              <h2 className="text-[15px] font-semibold text-[#0f172a]">Covered Core Skills ({matched.length})</h2>
+              <h2 className="text-[15px] font-semibold text-[#0f172a]">{tx("Covered Core Skills", "कवर मुख्य कौशल")} ({matched.length})</h2>
             </div>
             <span className="rounded-md bg-emerald-50 px-2 py-0.5 font-mono text-[10.5px] font-medium text-emerald-700">
-              STRENGTHS
+              {tx("STRENGTHS", "मजबूत पक्ष")}
             </span>
           </div>
           {matched.length === 0 ? (
             <p className="text-[12.5px] text-[#64748b]">
-              Upload your resume in <Link href="/resume" className="font-medium text-[#3b5bff] underline">Resume Studio</Link>{" "}
-              to measure verified skill overlap.
+              {tx("Upload your resume in", "रिज्यूमे अपलोड करें:")}{" "}
+              <Link href="/resume" className="font-medium text-[#3b5bff] underline">
+                {tx("Resume Studio", "रिज्यूमे स्टूडियो")}
+              </Link>{" "}
+              {tx("to measure verified skill overlap.", "सत्यापित कौशल मिलान मापने के लिए।")}
             </p>
           ) : (
             <div className="flex flex-wrap gap-2">
@@ -149,14 +157,16 @@ export default function SkillGapPage() {
           <div className="mb-4 flex items-center justify-between border-b border-[#f1f5f9] pb-3">
             <div className="flex items-center gap-2">
               <Target className="h-4 w-4 text-amber-600" />
-              <h2 className="text-[15px] font-semibold text-[#0f172a]">Priority Gaps to Address ({missing.length})</h2>
+              <h2 className="text-[15px] font-semibold text-[#0f172a]">{tx("Priority Gaps to Address", "सुधार हेतु प्राथमिकता कमियाँ")} ({missing.length})</h2>
             </div>
             <Link href="/assistant" className="text-[12px] font-medium text-[#3b5bff] hover:underline">
-              Study plan with AI →
+              {tx("Study plan with AI →", "AI से अध्ययन योजना →")}
             </Link>
           </div>
           {missing.length === 0 ? (
-            <p className="text-[12.5px] text-emerald-700">No missing priority skills detected across current roles.</p>
+            <p className="text-[12.5px] text-emerald-700">
+              {tx("No missing priority skills detected across current roles.", "मौजूदा पदों में कोई बड़ी कौशल कमी नहीं मिली।")}
+            </p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {missing.map((s) => (

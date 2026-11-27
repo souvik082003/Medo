@@ -28,6 +28,7 @@ class RetrievalFilters:
     job_type: Optional[str] = None
     min_salary_usd_eq: Optional[int] = None
     location_contains: Optional[str] = None
+    description_contains: Optional[str] = None
     source_name: Optional[str] = None
     include_expired: bool = False
 
@@ -80,7 +81,49 @@ class HybridRetriever:
         if filters.source_name:
             stmt = stmt.where(Job.source_name == filters.source_name.lower())
         if filters.location_contains:
-            stmt = stmt.where(Job.location.ilike(f"%{filters.location_contains.strip()}%"))
+            raw_area = filters.location_contains.strip()
+            area_lower = raw_area.lower()
+            area_terms = [raw_area]
+            alias_map = {
+                "bengaluru": ["bangalore", "india"],
+                "bangalore": ["bengaluru", "india"],
+                "delhi ncr": ["delhi", "gurgaon", "gurugram", "noida"],
+                "london": ["united kingdom", "uk"],
+                "usa": ["united states", "us only", "americas", "san francisco", "new york"],
+                "united states": ["usa", "us only", "americas"],
+                "europe": ["eu", "berlin", "munich", "germany", "amsterdam", "london"],
+                "remote": ["worldwide", "anywhere", "homeoffice", "global"],
+            }
+            for k, extras in alias_map.items():
+                if k in area_lower:
+                    area_terms.extend(extras)
+            area_clauses = [Job.location.ilike(f"%{t}%") for t in area_terms] + [
+                Job.description.ilike(f"%{raw_area}%")
+            ]
+            if filters.location_contains.strip().lower() in {"remote", "worldwide", "anywhere"}:
+                area_clauses.append(Job.work_mode == "remote")
+            stmt = stmt.where(or_(*area_clauses))
+        if filters.description_contains:
+            desc_q = filters.description_contains.strip()
+            if desc_q:
+                tokens = [t for t in re.split(r"[\s,]+", desc_q) if len(t) >= 2]
+                if len(tokens) > 1:
+                    for tok in tokens[:5]:
+                        stmt = stmt.where(
+                            or_(
+                                Job.description.ilike(f"%{tok}%"),
+                                Job.title.ilike(f"%{tok}%"),
+                                Job.company.ilike(f"%{tok}%"),
+                            )
+                        )
+                else:
+                    stmt = stmt.where(
+                        or_(
+                            Job.description.ilike(f"%{desc_q}%"),
+                            Job.title.ilike(f"%{desc_q}%"),
+                            Job.company.ilike(f"%{desc_q}%"),
+                        )
+                    )
         return list(self.db.scalars(stmt).all())
 
     def search(
@@ -99,6 +142,12 @@ class HybridRetriever:
         candidates = self._filtered_jobs(user_id, flt)
         if not candidates:
             return [], 0
+
+        q_clean = (query or "").strip()
+        if not q_clean:
+            candidates.sort(key=lambda j: j.created_at, reverse=True)
+            total = len(candidates)
+            return [RetrievedJob(job=j, final_score=1.0) for j in candidates[offset : offset + limit]], total
 
         candidate_ids = {j.id for j in candidates}
         id_to_job = {j.id: j for j in candidates}
@@ -178,6 +227,12 @@ class HybridRetriever:
                 final = d_score
             else:
                 rrf = 0.0
+                if b_score <= 0.0:
+                    haystack = f"{job.title} {job.company} {job.location or ''} {job.description}".lower()
+                    toks = tokenize_bm25(query)
+                    if not toks or not any(t in haystack for t in toks):
+                        continue
+                    b_score = round(sum(1.0 for t in toks if t in haystack) / len(toks), 4)
                 final = b_score
 
             fused.append(

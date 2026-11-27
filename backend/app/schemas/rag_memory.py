@@ -34,6 +34,7 @@ class RagDocumentResponse(BaseModel):
 class RagQueryRequest(BaseModel):
     query: str = Field(min_length=2, max_length=1000)
     conversation_id: Optional[uuid.UUID] = None
+    language: Literal["en", "hi"] = "en"
 
 
 class RagQueryResponse(BaseModel):

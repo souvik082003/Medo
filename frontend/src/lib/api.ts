@@ -171,6 +171,20 @@ export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
 
+export function isTokenExpired(token: string): boolean {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return false;
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    const payload = JSON.parse(atob(padded)) as { exp?: number };
+    if (typeof payload.exp !== "number") return false;
+    return Date.now() >= (payload.exp - 15) * 1000;
+  } catch {
+    return false;
+  }
+}
+
 export function getStoredUser(): User | null {
   if (typeof window === "undefined") return null;
   const raw = localStorage.getItem(USER_KEY);
@@ -223,6 +237,13 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
   if (!resp.ok) {
     const errObj = parsed.error as { message?: string; code?: string } | undefined;
+    const isAuthAttempt = path.startsWith("/api/v1/auth/login") || path.startsWith("/api/v1/auth/register");
+    if (resp.status === 401 && !isAuthAttempt && typeof window !== "undefined") {
+      clearAuthSession();
+      if (!window.location.pathname.startsWith("/auth")) {
+        window.location.replace("/auth?reason=expired");
+      }
+    }
     throw new Error(errObj?.message || `Request failed (${resp.status})`);
   }
   return parsed as T;

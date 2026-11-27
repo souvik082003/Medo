@@ -5,6 +5,7 @@ import { Activity, Check, CheckCircle2, Cpu, Plus, ShieldCheck, Trash2, X } from
 import { StudioShell } from "@/components/StudioShell";
 import { Banner, StatTile } from "@/components/ui";
 import { apiFetch, User } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 
 interface MemoryItem {
   id: string;
@@ -41,6 +42,7 @@ interface EvalRunItem {
 }
 
 export default function PrivacyMemoryPage() {
+  const { tx } = useLanguage();
   const [user, setUser] = useState<User | null>(null);
   const [memories, setMemories] = useState<MemoryItem[]>([]);
   const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
@@ -97,7 +99,7 @@ export default function PrivacyMemoryPage() {
         method: "POST",
         body: JSON.stringify({ suite: evalSuite }),
       });
-      setMsg(`Completed reproducible ${evalSuite.toUpperCase()} evaluation benchmark.`);
+      setMsg(tx(`Completed reproducible ${evalSuite.toUpperCase()} evaluation benchmark.`, `${evalSuite.toUpperCase()} मूल्यांकन बेंचमार्क पूरा हुआ।`));
       loadAll();
     } finally {
       setRunningEval(false);
@@ -110,7 +112,11 @@ export default function PrivacyMemoryPage() {
       body: JSON.stringify({ granted }),
     });
     setUser(updated);
-    setMsg(`External LLM data consent ${granted ? "enabled" : "revoked"} and logged.`);
+    setMsg(
+      granted
+        ? tx("External LLM data consent enabled and logged.", "बाहरी LLM डेटा सहमति चालू और लॉग की गई।")
+        : tx("External LLM data consent revoked and logged.", "बाहरी LLM डेटा सहमति रद्द और लॉग की गई।")
+    );
   };
 
   const handleAddMemory = async (e: React.FormEvent) => {
@@ -129,7 +135,7 @@ export default function PrivacyMemoryPage() {
       });
       setNewKey("");
       setNewVal("");
-      setMsg("Saved confirmed memory rule.");
+      setMsg(tx("Saved confirmed memory rule.", "पुष्ट मेमोरी नियम सहेजा गया।"));
       loadAll();
     } finally {
       setAddingMem(false);
@@ -147,7 +153,7 @@ export default function PrivacyMemoryPage() {
   const deleteMemory = async (id: string) => {
     await apiFetch(`/api/v1/memory/${id}`, { method: "DELETE" });
     setMemories((prev) => prev.filter((m) => m.id !== id));
-    setMsg("Deleted memory rule permanently.");
+    setMsg(tx("Deleted memory rule permanently.", "मेमोरी नियम स्थायी रूप से हटाया गया।"));
   };
 
   const decideApproval = async (id: string, decision: "approved" | "rejected") => {
@@ -162,8 +168,11 @@ export default function PrivacyMemoryPage() {
 
   return (
     <StudioShell
-      title="Privacy & Memory"
-      subtitle="Zero-trust governance for LLM consent, HITL approvals, 3-tier memory, and evaluation provenance"
+      title={tx("Privacy & Memory", "गोपनीयता और मेमोरी")}
+      subtitle={tx(
+        "Zero-trust governance for LLM consent, HITL approvals, 3-tier memory, and evaluation provenance",
+        "LLM सहमति, मानव अनुमोदन (HITL), 3-स्तरीय मेमोरी और ऑडिट नियंत्रण"
+      )}
       actions={
         <div className="atoms-segmented">
           <button
@@ -172,7 +181,7 @@ export default function PrivacyMemoryPage() {
             onClick={() => setActiveTab("governance")}
             className="atoms-segmented-btn text-[12px]"
           >
-            Consent &amp; HITL ({pendingCount})
+            {tx("Consent & HITL", "सहमति व अनुमोदन")} ({pendingCount})
           </button>
           <button
             type="button"
@@ -180,7 +189,7 @@ export default function PrivacyMemoryPage() {
             onClick={() => setActiveTab("memory")}
             className="atoms-segmented-btn text-[12px]"
           >
-            Memory ({memories.length})
+            {tx("Memory", "मेमोरी")} ({memories.length})
           </button>
           <button
             type="button"
@@ -188,7 +197,7 @@ export default function PrivacyMemoryPage() {
             onClick={() => setActiveTab("telemetry")}
             className="atoms-segmented-btn text-[12px]"
           >
-            Audit &amp; Eval
+            {tx("Audit & Eval", "ऑडिट व मूल्यांकन")}
           </button>
         </div>
       }
@@ -198,23 +207,27 @@ export default function PrivacyMemoryPage() {
       {/* Top 3 Governance Tiles */}
       <div className="mb-5 grid gap-4 sm:grid-cols-3">
         <StatTile
-          label="External LLM Consent"
-          value={user?.llm_consent_granted ? "Enabled" : "Local-Only"}
-          hint="Controls resume & JD transmission"
+          label={tx("External LLM Consent", "बाहरी LLM सहमति")}
+          value={user?.llm_consent_granted ? tx("Enabled", "सक्रिय") : tx("Local-Only", "केवल लोकल")}
+          hint={tx("Controls resume & JD transmission", "रिज्यूमे और JD डेटा साझाकरण नियंत्रण")}
           icon={ShieldCheck}
           accent={user?.llm_consent_granted ? "emerald" : "slate"}
         />
         <StatTile
-          label="Pending Approvals"
+          label={tx("Pending Approvals", "लंबित अनुमोदन")}
           value={pendingCount}
-          hint={`${approvals.length} total gated actions`}
+          hint={tx(`${approvals.length} total gated actions`, `कुल ${approvals.length} नियंत्रित क्रियाएँ`)}
           icon={CheckCircle2}
           accent={pendingCount > 0 ? "amber" : "indigo"}
         />
         <StatTile
-          label="API Telemetry"
+          label={tx("API Telemetry", "API टेलीमेट्री")}
           value={metricsSnap ? metricsSnap.request_count : "—"}
-          hint={metricsSnap ? `${(metricsSnap.error_rate * 100).toFixed(1)}% error rate` : "Loading telemetry"}
+          hint={
+            metricsSnap
+              ? tx(`${(metricsSnap.error_rate * 100).toFixed(1)}% error rate`, `${(metricsSnap.error_rate * 100).toFixed(1)}% त्रुटि दर`)
+              : tx("Loading telemetry", "लोड हो रहा है")
+          }
           icon={Activity}
           accent="indigo"
         />
@@ -227,18 +240,23 @@ export default function PrivacyMemoryPage() {
               <div>
                 <div className="flex items-center gap-2 text-[15px] font-semibold text-[#0f172a]">
                   <ShieldCheck className="h-4.5 w-4.5 text-[#3b5bff]" />
-                  LLM Processing Consent
+                  {tx("LLM Processing Consent", "LLM प्रोसेसिंग सहमति")}
                 </div>
                 <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#64748b]">
-                  Resumes and private workspace documents remain strictly local unless you opt into external LLM reasoning.
+                  {tx(
+                    "Resumes and private workspace documents remain strictly local unless you opt into external LLM reasoning.",
+                    "जब तक आप अनुमति नहीं देते, आपके रिज्यूमे और निजी दस्तावेज़ पूरी तरह लोकल रहते हैं।"
+                  )}
                 </p>
               </div>
             </div>
             <div className="mt-5 flex items-center justify-between rounded-xl border border-[#e5e7eb] bg-[#f8fafc] p-4">
               <div>
-                <div className="text-[13px] font-semibold text-[#0f172a]">Current Policy</div>
+                <div className="text-[13px] font-semibold text-[#0f172a]">{tx("Current Policy", "वर्तमान नीति")}</div>
                 <div className="text-[11.5px] text-[#64748b]">
-                  {user?.llm_consent_granted ? "AI Explain & Tailoring active" : "Strict local scoring only"}
+                  {user?.llm_consent_granted
+                    ? tx("AI Explain & Tailoring active", "AI व्याख्या और विश्लेषण सक्रिय")
+                    : tx("Strict local scoring only", "केवल लोकल स्कोरिंग सक्रिय")}
                 </div>
               </div>
               <button
@@ -249,21 +267,21 @@ export default function PrivacyMemoryPage() {
                     : "bg-[#3b5bff] text-white hover:bg-[#2948eb]"
                 }`}
               >
-                {user?.llm_consent_granted ? "Revoke Consent" : "Enable Consent"}
+                {user?.llm_consent_granted ? tx("Revoke Consent", "सहमति हटाएँ") : tx("Enable Consent", "सहमति दें")}
               </button>
             </div>
           </div>
 
           <div className="atoms-card p-6 lg:col-span-7">
             <h2 className="text-[15px] font-semibold text-[#0f172a]">
-              Human-in-the-Loop Approval Gate ({approvals.length})
+              {tx("Human-in-the-Loop Approval Gate", "मानव अनुमोदन द्वार")} ({approvals.length})
             </h2>
             <p className="mt-0.5 text-[12px] text-[#64748b]">
-              External agent submissions pause here until you approve or reject.
+              {tx("External agent submissions pause here until you approve or reject.", "बाहरी सबमिशन आपकी मंज़ूरी या अस्वीकृति तक यहाँ रुके रहते हैं।")}
             </p>
             {approvals.length === 0 ? (
               <p className="mt-4 rounded-xl border border-dashed border-[#cbd5e1] p-6 text-center text-[12.5px] text-[#64748b]">
-                No pending or historical approval requests.
+                {tx("No pending or historical approval requests.", "कोई लंबित या पिछला अनुमोदन अनुरोध नहीं है।")}
               </p>
             ) : (
               <div className="mt-4 space-y-2.5">
@@ -285,13 +303,13 @@ export default function PrivacyMemoryPage() {
                           onClick={() => decideApproval(ap.id, "approved")}
                           className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11.5px] font-medium text-white"
                         >
-                          <Check className="h-3.5 w-3.5" /> Approve
+                          <Check className="h-3.5 w-3.5" /> {tx("Approve", "स्वीकार करें")}
                         </button>
                         <button
                           onClick={() => decideApproval(ap.id, "rejected")}
                           className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-[11.5px] text-red-700"
                         >
-                          <X className="h-3.5 w-3.5" /> Reject
+                          <X className="h-3.5 w-3.5" /> {tx("Reject", "अस्वीकार करें")}
                         </button>
                       </div>
                     ) : (
@@ -310,12 +328,14 @@ export default function PrivacyMemoryPage() {
       {activeTab === "memory" && (
         <div className="grid gap-5 lg:grid-cols-12">
           <form onSubmit={handleAddMemory} className="atoms-card space-y-3.5 p-6 lg:col-span-5">
-            <h2 className="text-[15px] font-semibold text-[#0f172a]">Add Confirmed Memory Rule</h2>
+            <h2 className="text-[15px] font-semibold text-[#0f172a]">{tx("Add Confirmed Memory Rule", "पुष्ट मेमोरी नियम जोड़ें")}</h2>
             <p className="text-[12px] text-[#64748b]">
-              LLM inferences stay marked <code className="font-mono">inferred</code> until you confirm them.
+              {tx("LLM inferences stay marked", "LLM के अनुमान")}{" "}
+              <code className="font-mono">inferred</code>{" "}
+              {tx("until you confirm them.", "तब तक रहते हैं जब तक आप उनकी पुष्टि न करें।")}
             </p>
             <div>
-              <label className="mb-1 block text-[12px] font-medium text-[#475569]">Tier Type</label>
+              <label className="mb-1 block text-[12px] font-medium text-[#475569]">{tx("Tier Type", "मेमोरी प्रकार")}</label>
               <select
                 value={newType}
                 onChange={(e) => setNewType(e.target.value as "preference" | "career_decision" | "learned_context")}
@@ -327,7 +347,7 @@ export default function PrivacyMemoryPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-[12px] font-medium text-[#475569]">Key</label>
+              <label className="mb-1 block text-[12px] font-medium text-[#475569]">{tx("Key", "कुंजी (Key)")}</label>
               <input
                 required
                 value={newKey}
@@ -337,13 +357,13 @@ export default function PrivacyMemoryPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-[12px] font-medium text-[#475569]">Rule Value</label>
+              <label className="mb-1 block text-[12px] font-medium text-[#475569]">{tx("Rule Value", "नियम मान")}</label>
               <textarea
                 required
                 rows={3}
                 value={newVal}
                 onChange={(e) => setNewVal(e.target.value)}
-                placeholder="Prefer Bengaluru hybrid or remote AI Systems roles"
+                placeholder={tx("Prefer Bengaluru hybrid or remote AI Systems roles", "बेंगलुरु हाइब्रिड या रिमोट AI सिस्टम पद प्राथमिकता")}
                 className="studio-input"
               />
             </div>
@@ -352,15 +372,17 @@ export default function PrivacyMemoryPage() {
               disabled={addingMem}
               className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#0f172a] px-4 py-2.5 text-[12.5px] font-medium text-white hover:bg-[#1e293b] disabled:opacity-60"
             >
-              <Plus className="h-3.5 w-3.5" /> Save Memory Rule
+              <Plus className="h-3.5 w-3.5" /> {tx("Save Memory Rule", "मेमोरी नियम सहेजें")}
             </button>
           </form>
 
           <div className="atoms-card p-6 lg:col-span-7">
-            <h2 className="mb-3 text-[15px] font-semibold text-[#0f172a]">Stored Semantic Memories ({memories.length})</h2>
+            <h2 className="mb-3 text-[15px] font-semibold text-[#0f172a]">
+              {tx("Stored Semantic Memories", "सहेजी गई सिमेंटिक मेमोरी")} ({memories.length})
+            </h2>
             {memories.length === 0 ? (
               <p className="rounded-xl border border-dashed border-[#cbd5e1] p-6 text-center text-[12.5px] text-[#64748b]">
-                No memory rules stored yet.
+                {tx("No memory rules stored yet.", "अभी तक कोई मेमोरी नियम सहेजा नहीं गया।")}
               </p>
             ) : (
               <div className="space-y-2.5">
@@ -418,8 +440,8 @@ export default function PrivacyMemoryPage() {
               <div className="flex items-center gap-2.5">
                 <Cpu className="h-4.5 w-4.5 text-[#3b5bff]" />
                 <div>
-                  <div className="text-[14px] font-semibold text-[#0f172a]">Runtime Infrastructure Readiness</div>
-                  <div className="text-[12px] text-[#64748b]">Live probe via /ready endpoint</div>
+                  <div className="text-[14px] font-semibold text-[#0f172a]">{tx("Runtime Infrastructure Readiness", "रनटाइम सिस्टम स्थिति")}</div>
+                  <div className="text-[12px] text-[#64748b]">{tx("Live probe via /ready endpoint", "/ready एंडपॉइंट द्वारा लाइव जाँच")}</div>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
@@ -430,7 +452,7 @@ export default function PrivacyMemoryPage() {
                   Redis: {readiness.redis}
                 </span>
                 <span className="rounded-lg bg-[#3b5bff]/10 px-2.5 py-1 font-semibold text-[#3b5bff]">
-                  Tokens: {metricsSnap?.token_usage?.total_tokens ?? 0}
+                  {tx("Tokens", "टोकन")}: {metricsSnap?.token_usage?.total_tokens ?? 0}
                 </span>
               </div>
             </div>
@@ -440,8 +462,8 @@ export default function PrivacyMemoryPage() {
             <div className="atoms-card p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-[15px] font-semibold text-[#0f172a]">Evaluation &amp; Provenance</h2>
-                  <p className="mt-0.5 text-[12px] text-[#64748b]">Benchmark runs strictly separated from user telemetry</p>
+                  <h2 className="text-[15px] font-semibold text-[#0f172a]">{tx("Evaluation & Provenance", "मूल्यांकन और प्रमाण")}</h2>
+                  <p className="mt-0.5 text-[12px] text-[#64748b]">{tx("Benchmark runs strictly separated from user telemetry", "बेंचमार्क परिणाम उपयोगकर्ता टेलीमेट्री से अलग रखे जाते हैं")}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <select
@@ -452,19 +474,19 @@ export default function PrivacyMemoryPage() {
                     <option value="rag">RAG Suite</option>
                     <option value="ranking">Ranking Suite</option>
                     <option value="agent">Agent Suite</option>
-                    <option value="all">Full Suite</option>
+                    <option value="all">{tx("Full Suite", "पूर्ण सूट")}</option>
                   </select>
                   <button
                     onClick={triggerEvaluation}
                     disabled={runningEval}
                     className="rounded-xl bg-[#3b5bff] px-3.5 py-1.5 text-[12px] font-medium text-white hover:bg-[#2948eb] disabled:opacity-60"
                   >
-                    {runningEval ? "Running..." : "Run Eval"}
+                    {runningEval ? tx("Running...", "चल रहा है...") : tx("Run Eval", "मूल्यांकन चलाएँ")}
                   </button>
                 </div>
               </div>
               {evalRuns.length === 0 ? (
-                <p className="mt-4 text-[12px] text-[#64748b]">No evaluation runs logged yet.</p>
+                <p className="mt-4 text-[12px] text-[#64748b]">{tx("No evaluation runs logged yet.", "अभी कोई मूल्यांकन रन लॉग नहीं हुआ।")}</p>
               ) : (
                 <div className="mt-4 space-y-2">
                   {evalRuns.map((er) => (
@@ -502,12 +524,17 @@ export default function PrivacyMemoryPage() {
             </div>
 
             <div className="atoms-card p-6">
-              <h2 className="text-[15px] font-semibold text-[#0f172a]">Security &amp; Privacy Audit Log ({audits.length})</h2>
+              <h2 className="text-[15px] font-semibold text-[#0f172a]">
+                {tx("Security & Privacy Audit Log", "सुरक्षा और गोपनीयता ऑडिट लॉग")} ({audits.length})
+              </h2>
               <p className="mt-0.5 text-[12px] text-[#64748b]">
-                Raw resume content, tokens, and credentials are never stored in audit streams.
+                {tx(
+                  "Raw resume content, tokens, and credentials are never stored in audit streams.",
+                  "कच्चा रिज्यूमे टेक्स्ट, टोकन या पासवर्ड ऑडिट लॉग में कभी संग्रहीत नहीं होते।"
+                )}
               </p>
               {audits.length === 0 ? (
-                <p className="mt-4 text-[12px] text-[#64748b]">No audit events recorded yet.</p>
+                <p className="mt-4 text-[12px] text-[#64748b]">{tx("No audit events recorded yet.", "अभी कोई ऑडिट गतिविधि दर्ज नहीं है।")}</p>
               ) : (
                 <div className="mt-4 divide-y divide-[#f1f5f9] text-[12px]">
                   {audits.map((a) => (

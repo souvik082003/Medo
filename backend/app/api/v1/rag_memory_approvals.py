@@ -97,6 +97,7 @@ def query_rag(
             payload.query,
             conversation_summary=conv_summary,
             llm_consent_granted=current_user.llm_consent_granted,
+            language=payload.language,
             settings=settings,
         )
     return RagQueryResponse(

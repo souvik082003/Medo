@@ -20,15 +20,17 @@ import {
 import { StudioShell } from "@/components/StudioShell";
 import { Banner, EmptyState } from "@/components/ui";
 import { apiFetch, JobItem, JobSearchResult } from "@/lib/api";
+import { parseStructuredJobDescription } from "@/lib/formatJob";
+import { useLanguage } from "@/lib/i18n";
 
 const REGION_OPTIONS = [
-  { value: "", label: "All Regions" },
-  { value: "GLOBAL", label: "Global Remote" },
-  { value: "IN", label: "India" },
-  { value: "US", label: "United States" },
-  { value: "EU", label: "Europe" },
-  { value: "UK", label: "UK" },
-  { value: "SG", label: "Singapore" },
+  { value: "", label: "All Regions", labelHi: "सभी क्षेत्र" },
+  { value: "GLOBAL", label: "Global Remote", labelHi: "ग्लोबल रिमोट" },
+  { value: "IN", label: "India", labelHi: "भारत" },
+  { value: "US", label: "United States", labelHi: "अमेरिका" },
+  { value: "EU", label: "Europe", labelHi: "यूरोप" },
+  { value: "UK", label: "UK", labelHi: "यूके" },
+  { value: "SG", label: "Singapore", labelHi: "सिंगापुर" },
 ] as const;
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -55,11 +57,14 @@ interface JobSourceHealth {
 }
 
 function DiscoverInner() {
+  const { tx } = useLanguage();
   const params = useSearchParams();
-  const [query, setQuery] = useState(params.get("q") || "Machine Learning Engineer AI Python");
+  const [query, setQuery] = useState(params.get("q") || "");
   const [mode, setMode] = useState<"hybrid" | "dense" | "bm25">("hybrid");
+  const [matchDescriptionOnly, setMatchDescriptionOnly] = useState(false);
   const [useReranker, setUseReranker] = useState(true);
   const [region, setRegion] = useState("");
+  const [areaFilter, setAreaFilter] = useState("");
   const [includeGlobal, setIncludeGlobal] = useState(true);
   const [workMode, setWorkMode] = useState("");
   const [jobType, setJobType] = useState("");
@@ -94,19 +99,22 @@ function DiscoverInner() {
       setLoading(true);
       setError(null);
       try {
+        const cleanedQuery = query.trim();
         const res = await apiFetch<{ items: JobSearchResult[]; total: number }>("/api/v1/jobs/search", {
           method: "POST",
           body: JSON.stringify({
-            query: query.trim() || "engineer",
-            mode,
-            use_reranker: useReranker,
+            query: cleanedQuery,
+            mode: matchDescriptionOnly && cleanedQuery ? "bm25" : mode,
+            use_reranker: matchDescriptionOnly ? false : useReranker,
             region: region || null,
             include_global: Boolean(region && region !== "GLOBAL" && includeGlobal),
             work_mode: workMode || null,
             job_type: jobType || null,
             min_salary_usd_eq: minSalaryUsd > 0 ? minSalaryUsd : null,
+            location_contains: areaFilter || null,
+            description_contains: matchDescriptionOnly && cleanedQuery ? cleanedQuery : null,
             source_name: sourceFilter || null,
-            limit: 30,
+            limit: 40,
           }),
         });
         setResults(res.items);
@@ -120,13 +128,13 @@ function DiscoverInner() {
         setLoading(false);
       }
     },
-    [query, mode, useReranker, region, includeGlobal, workMode, jobType, minSalaryUsd, sourceFilter]
+    [query, mode, matchDescriptionOnly, useReranker, region, areaFilter, includeGlobal, workMode, jobType, minSalaryUsd, sourceFilter]
   );
 
   useEffect(() => {
     runSearch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, useReranker, region, includeGlobal, workMode, jobType, minSalaryUsd, sourceFilter]);
+  }, [mode, matchDescriptionOnly, useReranker, region, areaFilter, includeGlobal, workMode, jobType, minSalaryUsd, sourceFilter]);
 
   const openHealthMonitor = async () => {
     setShowHealthModal(true);
@@ -135,20 +143,6 @@ function DiscoverInner() {
       setSourceHealth(res);
     } catch {
       setSourceHealth([]);
-    }
-  };
-
-  const handleLoadDemoJobs = async () => {
-    setIngestingLive(true);
-    setError(null);
-    try {
-      const res = await apiFetch<{ inserted?: number }>("/api/v1/jobs/ingest/demo", { method: "POST" });
-      setMsg(`Loaded curated workspace roles (${res.inserted ?? 0} added).`);
-      await runSearch();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load demo jobs");
-    } finally {
-      setIngestingLive(false);
     }
   };
 
@@ -262,8 +256,11 @@ function DiscoverInner() {
 
   return (
     <StudioShell
-      title="Job Discovery"
-      subtitle="Hybrid retrieval across live free sources with master-detail role inspection"
+      title={tx("Job Discovery", "नौकरी खोज")}
+      subtitle={tx(
+        "Hybrid retrieval across live free sources with master-detail role inspection",
+        "लाइव स्रोतों से हाइब्रिड खोज और विस्तृत भूमिका निरीक्षण"
+      )}
       fullWidth
       actions={
         <div className="flex flex-wrap items-center gap-2">
@@ -272,14 +269,14 @@ function DiscoverInner() {
             onClick={openHealthMonitor}
             className="inline-flex items-center gap-1.5 rounded-xl border border-[#e2e8f0] bg-white px-3 py-1.5 text-[12px] font-medium text-[#0f172a] transition hover:border-[#cbd5e1]"
           >
-            Source Health
+            {tx("Source Health", "स्रोत स्थिति")}
           </button>
           <button
             type="button"
             onClick={() => setShowCustomForm(true)}
             className="inline-flex items-center gap-1.5 rounded-xl border border-[#e2e8f0] bg-white px-3 py-1.5 text-[12px] font-medium text-[#0f172a] transition hover:border-[#cbd5e1]"
           >
-            <Plus className="h-3.5 w-3.5 text-[#3b5bff]" /> Custom Job
+            <Plus className="h-3.5 w-3.5 text-[#3b5bff]" /> {tx("Custom Job", "कस्टम नौकरी")}
           </button>
           <div className="flex items-center overflow-hidden rounded-xl border border-[#e2e8f0] bg-white shadow-2xs">
             <select
@@ -299,7 +296,7 @@ function DiscoverInner() {
               }
               className="border-r border-[#e2e8f0] bg-[#f8fafc] px-2.5 py-1.5 text-[12px] font-medium text-[#0f172a] outline-none"
             >
-              <option value="all_free">All Free (6x)</option>
+              <option value="all_free">{tx("All Free (6x)", "सभी मुफ्त (6x)")}</option>
               <option value="himalayas">Himalayas</option>
               <option value="jobicy">Jobicy</option>
               <option value="remotive">Remotive</option>
@@ -314,7 +311,7 @@ function DiscoverInner() {
               className="inline-flex items-center gap-1.5 bg-[#3b5bff] px-3.5 py-1.5 text-[12px] font-medium text-white transition hover:bg-[#2948eb] disabled:opacity-60"
             >
               <Globe className="h-3.5 w-3.5" />
-              {ingestingLive ? "Syncing..." : "Fetch Live"}
+              {ingestingLive ? tx("Syncing...", "सिंक हो रहा है...") : tx("Fetch Live", "लाइव लाएँ")}
             </button>
           </div>
         </div>
@@ -326,8 +323,12 @@ function DiscoverInner() {
           <div className="atoms-card w-full max-w-lg p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-[15.5px] font-semibold text-[#0f172a]">Job Connector Health</h2>
-                <p className="text-[12px] text-[#64748b]">Live telemetry across ingestion adapters</p>
+                <h2 className="text-[15.5px] font-semibold text-[#0f172a]">
+                  {tx("Job Connector Health", "जॉब कनेक्टर स्वास्थ्य")}
+                </h2>
+                <p className="text-[12px] text-[#64748b]">
+                  {tx("Live telemetry across ingestion adapters", "लाइव डेटा स्रोतों की ताज़ा स्थिति")}
+                </p>
               </div>
               <button
                 type="button"
@@ -339,11 +340,10 @@ function DiscoverInner() {
             </div>
             {sourceHealth.length === 0 ? (
               <div className="rounded-xl border border-dashed border-[#cbd5e1] p-6 text-center text-[12.5px] text-[#64748b]">
-                No connector runs recorded yet. Click <strong>Fetch Live</strong> or{" "}
-                <button type="button" onClick={handleLoadDemoJobs} className="font-semibold text-[#3b5bff] underline">
-                  Load Demo Roles
-                </button>{" "}
-                to initialize connectors.
+                {tx(
+                  "No connector runs recorded yet. Click Fetch Live above to pull real openings across all 6 sources.",
+                  "अभी कोई कनेक्टर रिकॉर्ड नहीं है। सभी 6 स्रोतों से लाइव नौकरियाँ लाने के लिए ऊपर 'लाइव लाएँ' दबाएँ।"
+                )}
               </div>
             ) : (
               <div className="space-y-2">
@@ -381,8 +381,10 @@ function DiscoverInner() {
           <form onSubmit={handleCreateCustomJob} className="atoms-card w-full max-w-xl space-y-3.5 p-6 shadow-2xl">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-[15.5px] font-semibold text-[#0f172a]">Add Custom Private Job</h2>
-                <p className="text-[12px] text-[#64748b]">Saved privately to your workspace and indexed for vector matching</p>
+                <h2 className="text-[15.5px] font-semibold text-[#0f172a]">{tx("Add Custom Private Job", "कस्टम प्राइवेट नौकरी जोड़ें")}</h2>
+                <p className="text-[12px] text-[#64748b]">
+                  {tx("Saved privately to your workspace and indexed for vector matching", "आपके कार्यक्षेत्र में निजी रूप से सहेजा और मिलान के लिए इंडेक्स किया जाता है")}
+                </p>
               </div>
               <button
                 type="button"
@@ -398,26 +400,26 @@ function DiscoverInner() {
                 minLength={2}
                 value={customTitle}
                 onChange={(e) => setCustomTitle(e.target.value)}
-                placeholder="Job Title (e.g., Senior AI Engineer)"
+                placeholder={tx("Job Title (e.g., Senior AI Engineer)", "नौकरी का शीर्षक (जैसे, Senior AI Engineer)")}
                 className="studio-input"
               />
               <input
                 required
                 value={customCompany}
                 onChange={(e) => setCustomCompany(e.target.value)}
-                placeholder="Company"
+                placeholder={tx("Company", "कंपनी")}
                 className="studio-input"
               />
               <input
                 value={customLocation}
                 onChange={(e) => setCustomLocation(e.target.value)}
-                placeholder="Location (e.g., Bengaluru / Remote)"
+                placeholder={tx("Location (e.g., Bengaluru / Remote)", "स्थान (जैसे, बेंगलुरु / रिमोट)")}
                 className="studio-input"
               />
               <input
                 value={customSalary}
                 onChange={(e) => setCustomSalary(e.target.value)}
-                placeholder="Compensation (e.g., ₹35-45 LPA)"
+                placeholder={tx("Compensation (e.g., ₹35-45 LPA)", "वेतन (जैसे, ₹35-45 LPA)")}
                 className="studio-input"
               />
             </div>
@@ -435,7 +437,7 @@ function DiscoverInner() {
               rows={4}
               value={customDesc}
               onChange={(e) => setCustomDesc(e.target.value)}
-              placeholder="Paste role responsibilities and required stack (min 20 characters)..."
+              placeholder={tx("Paste role responsibilities and required stack (min 20 characters)...", "भूमिका की ज़िम्मेदारियाँ और आवश्यक कौशल पेस्ट करें (कम से कम 20 अक्षर)...")}
               className="studio-input"
             />
             <div className="flex justify-end gap-2 pt-1">
@@ -444,151 +446,250 @@ function DiscoverInner() {
                 onClick={() => setShowCustomForm(false)}
                 className="rounded-xl border border-[#e2e8f0] px-4 py-2 text-[12.5px] font-medium text-[#475569] hover:bg-[#f8fafc]"
               >
-                Cancel
+                {tx("Cancel", "रद्द करें")}
               </button>
               <button
                 type="submit"
                 disabled={creatingCustom}
                 className="rounded-xl bg-[#0f172a] px-4 py-2 text-[12.5px] font-medium text-white hover:bg-[#1e293b] disabled:opacity-60"
               >
-                {creatingCustom ? "Indexing..." : "Save & Index Job"}
+                {creatingCustom ? tx("Indexing...", "इंडेक्स हो रहा है...") : tx("Save & Index Job", "सहेजें और इंडेक्स करें")}
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Compact Unified Search Bar */}
-      <form onSubmit={runSearch} className="atoms-card mb-4 p-4">
+      {/* Professional Search & Area Dropdown Toolbar */}
+      <form onSubmit={runSearch} className="atoms-card mb-4 space-y-3.5 p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-[#64748b]" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search titles, skills, or domains (e.g., PyTorch, FastAPI, ML Engineer)..."
-              className="studio-input pl-10"
+              placeholder={tx("Search titles, companies, skills, or keywords in job descriptions...", "शीर्षक, कंपनी, कौशल या नौकरी विवरण के कीवर्ड से खोजें...")}
+              className="studio-input pl-10 pr-8"
             />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                title={tx("Clear query", "खोज साफ़ करें")}
+                className="absolute right-2.5 top-2 rounded p-0.5 text-[#94a3b8] hover:bg-[#f1f5f9] hover:text-[#0f172a]"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <div className="atoms-segmented">
-              {(["hybrid", "dense", "bm25"] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  data-active={mode === m}
-                  onClick={() => setMode(m)}
-                  className="atoms-segmented-btn font-mono text-[11px] uppercase"
-                >
-                  {m}
-                </button>
-              ))}
+              <button
+                type="button"
+                data-active={!matchDescriptionOnly && mode === "hybrid"}
+                onClick={() => {
+                  setMatchDescriptionOnly(false);
+                  setMode("hybrid");
+                }}
+                className="atoms-segmented-btn text-[11.5px]"
+              >
+                {tx("Smart Hybrid", "स्मार्ट हाइब्रिड")}
+              </button>
+              <button
+                type="button"
+                data-active={matchDescriptionOnly}
+                onClick={() => {
+                  setMatchDescriptionOnly(true);
+                  setMode("bm25");
+                }}
+                className="atoms-segmented-btn text-[11.5px]"
+              >
+                {tx("Exact in JD", "JD में सटीक")}
+              </button>
+              <button
+                type="button"
+                data-active={!matchDescriptionOnly && mode === "dense"}
+                onClick={() => {
+                  setMatchDescriptionOnly(false);
+                  setMode("dense");
+                }}
+                className="atoms-segmented-btn text-[11.5px]"
+              >
+                {tx("Semantic", "सिमेंटिक")}
+              </button>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="rounded-xl bg-[#0f172a] px-4 py-2 text-[12.5px] font-medium text-white transition hover:bg-[#1e293b] disabled:opacity-60"
+              className="rounded-xl bg-[#0f172a] px-4 py-2 text-[12.5px] font-medium text-white shadow-2xs transition hover:bg-[#1e293b] disabled:opacity-60"
             >
-              {loading ? "Searching..." : "Search"}
+              {loading ? tx("Searching...", "खोज रहा है...") : tx("Search Jobs", "नौकरी खोजें")}
             </button>
           </div>
         </div>
 
-        {/* Single Clean Filter Row */}
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-[#f1f5f9] pt-3">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 inline-flex items-center gap-1 text-[11.5px] font-medium text-[#64748b]">
-              <MapPin className="h-3.5 w-3.5" />
-            </span>
-            {REGION_OPTIONS.map((opt) => {
-              const active = region === opt.value;
-              return (
-                <button
-                  key={opt.value || "all"}
-                  type="button"
-                  onClick={() => setRegion(opt.value)}
-                  className={`rounded-lg px-2.5 py-1 text-[11.5px] font-medium transition ${
-                    active
-                      ? "bg-[#3b5bff] text-white shadow-2xs"
-                      : "bg-[#f8fafc] text-[#475569] ring-1 ring-[#e2e8f0] hover:text-[#0f172a]"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-            {region && region !== "GLOBAL" && (
-              <label className="ml-2 flex cursor-pointer items-center gap-1.5 text-[11.5px] text-[#475569]">
-                <input
-                  type="checkbox"
-                  checked={includeGlobal}
-                  onChange={(e) => setIncludeGlobal(e.target.checked)}
-                  className="accent-[#3b5bff]"
-                />
-                + Global Remote
-              </label>
-            )}
+        {/* Dropdown Filter Grid */}
+        <div className="grid gap-2.5 border-t border-[#f1f5f9] pt-3.5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+          {/* Region Dropdown */}
+          <div>
+            <label className="mb-1 flex items-center gap-1 text-[10.5px] font-semibold uppercase tracking-wider text-[#64748b]">
+              <Globe className="h-3 w-3" /> {tx("Region", "क्षेत्र")}
+            </label>
+            <select
+              value={region}
+              onChange={(e) => setRegion(e.target.value)}
+              className="studio-input py-1.5 text-[12px]"
+            >
+              {REGION_OPTIONS.map((opt) => (
+                <option key={opt.value || "all"} value={opt.value}>
+                  {tx(opt.label, opt.labelHi)}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <SlidersHorizontal className="h-3.5 w-3.5 text-[#64748b]" />
-            <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] px-2.5 py-1 text-[11.5px] text-[#475569]">
-              <input
-                type="checkbox"
-                checked={useReranker}
-                onChange={(e) => setUseReranker(e.target.checked)}
-                className="accent-[#3b5bff]"
-              />
-              Reranker
+          {/* Area / City Dropdown */}
+          <div>
+            <label className="mb-1 flex items-center gap-1 text-[10.5px] font-semibold uppercase tracking-wider text-[#64748b]">
+              <MapPin className="h-3 w-3" /> {tx("Area / City", "एरिया / शहर")}
+            </label>
+            <select
+              value={areaFilter}
+              onChange={(e) => setAreaFilter(e.target.value)}
+              className="studio-input py-1.5 text-[12px]"
+            >
+              <option value="">{tx("All Areas (Anywhere)", "सभी क्षेत्र (कहीं भी)")}</option>
+              <optgroup label="Remote">
+                <option value="Remote">Remote Only</option>
+                <option value="Worldwide">Worldwide</option>
+              </optgroup>
+              <optgroup label="India Hubs">
+                <option value="Bengaluru">Bengaluru / Bangalore</option>
+                <option value="Hyderabad">Hyderabad</option>
+                <option value="Pune">Pune</option>
+                <option value="Mumbai">Mumbai</option>
+                <option value="Delhi NCR">Delhi NCR / Gurugram</option>
+                <option value="Chennai">Chennai</option>
+              </optgroup>
+              <optgroup label="Europe & UK">
+                <option value="London">London / UK</option>
+                <option value="Berlin">Berlin</option>
+                <option value="Munich">Munich</option>
+                <option value="Amsterdam">Amsterdam</option>
+                <option value="Europe">Europe</option>
+              </optgroup>
+              <optgroup label="Americas & APAC">
+                <option value="San Francisco">San Francisco</option>
+                <option value="New York">New York</option>
+                <option value="USA">United States</option>
+                <option value="Canada">Canada</option>
+                <option value="Singapore">Singapore</option>
+                <option value="Tokyo">Tokyo</option>
+              </optgroup>
+            </select>
+          </div>
+
+          {/* Work Mode Dropdown */}
+          <div>
+            <label className="mb-1 flex items-center gap-1 text-[10.5px] font-semibold uppercase tracking-wider text-[#64748b]">
+              <SlidersHorizontal className="h-3 w-3" /> {tx("Work Mode", "कार्य मोड")}
             </label>
             <select
               value={workMode}
               onChange={(e) => setWorkMode(e.target.value)}
-              className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] px-2.5 py-1 text-[11.5px] text-[#0f172a] outline-none"
+              className="studio-input py-1.5 text-[12px]"
             >
-              <option value="">Any Work Mode</option>
-              <option value="remote">Remote</option>
-              <option value="hybrid">Hybrid</option>
-              <option value="onsite">Onsite</option>
+              <option value="">{tx("Any Work Mode", "कोई भी मोड")}</option>
+              <option value="remote">{tx("Remote", "रिमोट")}</option>
+              <option value="hybrid">{tx("Hybrid", "हाइब्रिड")}</option>
+              <option value="onsite">{tx("Onsite", "ऑनसाइट")}</option>
             </select>
+          </div>
+
+          {/* Job Type Dropdown */}
+          <div>
+            <label className="mb-1 block text-[10.5px] font-semibold uppercase tracking-wider text-[#64748b]">
+              {tx("Job Type", "नौकरी प्रकार")}
+            </label>
             <select
               value={jobType}
               onChange={(e) => setJobType(e.target.value)}
-              className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] px-2.5 py-1 text-[11.5px] text-[#0f172a] outline-none"
+              className="studio-input py-1.5 text-[12px]"
             >
-              <option value="">Any Type</option>
-              <option value="full-time">Full-time</option>
-              <option value="contract">Contract</option>
-              <option value="internship">Internship</option>
+              <option value="">{tx("Any Type", "कोई भी प्रकार")}</option>
+              <option value="full-time">{tx("Full-time", "फुल-टाइम")}</option>
+              <option value="contract">{tx("Contract", "कॉन्ट्रैक्ट")}</option>
+              <option value="internship">{tx("Internship", "इंटर्नशिप")}</option>
             </select>
+          </div>
+
+          {/* Min Salary Dropdown */}
+          <div>
+            <label className="mb-1 block text-[10.5px] font-semibold uppercase tracking-wider text-[#64748b]">
+              {tx("Min Salary", "न्यूनतम वेतन")}
+            </label>
             <select
               value={minSalaryUsd}
               onChange={(e) => setMinSalaryUsd(Number(e.target.value))}
-              className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] px-2.5 py-1 text-[11.5px] text-[#0f172a] outline-none"
+              className="studio-input py-1.5 text-[12px]"
             >
-              <option value={0}>Any Salary</option>
+              <option value={0}>{tx("Any Salary", "कोई भी वेतन")}</option>
               <option value={60000}>$60k+ Eq</option>
               <option value={100000}>$100k+ Eq</option>
               <option value={150000}>$150k+ Eq</option>
             </select>
+          </div>
+
+          {/* Source Dropdown */}
+          <div>
+            <label className="mb-1 block text-[10.5px] font-semibold uppercase tracking-wider text-[#64748b]">
+              {tx("Live Source", "लाइव स्रोत")}
+            </label>
             <select
               value={sourceFilter}
               onChange={(e) => setSourceFilter(e.target.value)}
-              className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] px-2.5 py-1 text-[11.5px] text-[#0f172a] outline-none"
+              className="studio-input py-1.5 text-[12px]"
             >
-              <option value="">All Sources</option>
+              <option value="">{tx("All Live Sources", "सभी लाइव स्रोत")}</option>
               <option value="himalayas">Himalayas</option>
               <option value="jobicy">Jobicy</option>
               <option value="remotive">Remotive</option>
               <option value="remoteok">RemoteOK</option>
               <option value="arbeitnow">Arbeitnow</option>
               <option value="hackernews">HackerNews</option>
-              <option value="manual">Custom Jobs</option>
+              <option value="manual">{tx("Custom Jobs", "कस्टम नौकरियाँ")}</option>
             </select>
           </div>
         </div>
+
+        {(region && region !== "GLOBAL") || !matchDescriptionOnly ? (
+          <div className="flex flex-wrap items-center gap-5 pt-1 text-[11.5px] text-[#475569]">
+            {region && region !== "GLOBAL" && (
+              <label className="flex cursor-pointer items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={includeGlobal}
+                  onChange={(e) => setIncludeGlobal(e.target.checked)}
+                  className="accent-[#3b5bff]"
+                />
+                {tx(`Include Global Remote openings alongside ${region}`, `${region} के साथ ग्लोबल रिमोट नौकरियाँ भी शामिल करें`)}
+              </label>
+            )}
+            {!matchDescriptionOnly && (
+              <label className="flex cursor-pointer items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={useReranker}
+                  onChange={(e) => setUseReranker(e.target.checked)}
+                  className="accent-[#3b5bff]"
+                />
+                {tx("Enable Cross-Encoder Neural Reranking", "क्रॉस-एनकोडर न्यूरल रीरैंकिंग चालू करें")}
+              </label>
+            )}
+          </div>
+        ) : null}
       </form>
 
       {msg && <Banner tone="success" message={msg} onClose={() => setMsg(null)} className="mb-4" />}
@@ -596,14 +697,18 @@ function DiscoverInner() {
 
       <div className="mb-3 flex items-center justify-between text-[12px] text-[#64748b]">
         <span>
-          Showing <strong className="tnum text-[#0f172a]">{results.length}</strong> of{" "}
-          <strong className="tnum text-[#0f172a]">{total}</strong> opportunities
+          {tx("Showing", "दिखाए जा रहे हैं")} <strong className="tnum text-[#0f172a]">{results.length}</strong>{" "}
+          {tx("of", "/")} <strong className="tnum text-[#0f172a]">{total}</strong>{" "}
+          {tx("live opportunities", "लाइव अवसर")}
         </span>
-        {(region || workMode || jobType || minSalaryUsd > 0 || sourceFilter) && (
+        {(query || region || areaFilter || workMode || jobType || minSalaryUsd > 0 || sourceFilter || matchDescriptionOnly) && (
           <button
             type="button"
             onClick={() => {
+              setQuery("");
+              setMatchDescriptionOnly(false);
               setRegion("");
+              setAreaFilter("");
               setWorkMode("");
               setJobType("");
               setMinSalaryUsd(0);
@@ -611,7 +716,7 @@ function DiscoverInner() {
             }}
             className="font-medium text-[#3b5bff] hover:underline"
           >
-            Reset active filters
+            {tx("Reset all filters", "सभी फ़िल्टर रीसेट करें")}
           </button>
         )}
       </div>
@@ -629,9 +734,12 @@ function DiscoverInner() {
       ) : results.length === 0 ? (
         <EmptyState
           icon={Search}
-          title="No matching jobs found"
-          description="Try broadening your keywords, enabling Global Remote, or clicking Fetch Live to ingest fresh openings."
-          actionLabel="Fetch Live Jobs"
+          title={tx("No matching jobs found", "कोई मिलती-जुलती नौकरी नहीं मिली")}
+          description={tx(
+            "Try broadening your keywords, enabling Global Remote, or clicking Fetch Live to ingest fresh openings.",
+            "अपने कीवर्ड बदलें, ग्लोबल रिमोट चालू करें या नई नौकरियाँ लाने के लिए 'लाइव लाएँ' दबाएँ।"
+          )}
+          actionLabel={tx("Fetch Live Jobs", "लाइव नौकरियाँ लाएँ")}
           onAction={handleIngestLive}
         />
       ) : (
@@ -674,7 +782,9 @@ function DiscoverInner() {
                           </>
                         )}
                       </div>
-                      <p className="mt-2 line-clamp-2 text-[12px] leading-relaxed text-[#64748b]">{r.job.description}</p>
+                      <p className="mt-2 line-clamp-2 text-[12px] leading-relaxed text-[#64748b]">
+                        {parseStructuredJobDescription(r.job.description, r.job.title).cleanFullText}
+                      </p>
                     </div>
 
                     <div className="flex shrink-0 flex-col items-end gap-2">
@@ -694,7 +804,7 @@ function DiscoverInner() {
                         }`}
                       >
                         {isSaved ? <Check className="h-3 w-3" /> : <Bookmark className="h-3 w-3" />}
-                        {isSaved ? "Saved" : "Save"}
+                        {isSaved ? tx("Saved", "सहेजा गया") : tx("Save", "सहेजें")}
                       </button>
                     </div>
                   </div>
@@ -738,7 +848,7 @@ function DiscoverInner() {
                   href={`/jobs/${activeResult.job.id}`}
                   className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#3b5bff] px-3.5 py-2 text-[12.5px] font-medium text-white shadow-xs transition hover:bg-[#2948eb]"
                 >
-                  <Sparkles className="h-3.5 w-3.5" /> Full Match &amp; AI Explain
+                  <Sparkles className="h-3.5 w-3.5" /> {tx("Full Match & AI Explain", "पूर्ण मिलान और AI व्याख्या")}
                 </Link>
                 <button
                   type="button"
@@ -746,7 +856,7 @@ function DiscoverInner() {
                   className="inline-flex items-center gap-1.5 rounded-xl border border-[#e2e8f0] bg-white px-3 py-2 text-[12.5px] font-medium text-[#0f172a] hover:bg-[#f8fafc]"
                 >
                   <Briefcase className="h-3.5 w-3.5" />
-                  {trackedIds[activeResult.job.id] ? "Tracked" : "Track"}
+                  {trackedIds[activeResult.job.id] ? tx("Tracked", "ट्रैक किया गया") : tx("Track", "ट्रैक करें")}
                 </button>
                 {activeResult.job.application_url && (
                   <a
@@ -755,7 +865,7 @@ function DiscoverInner() {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 rounded-xl border border-[#e2e8f0] bg-white px-3 py-2 text-[12.5px] font-medium text-[#475569] hover:text-[#0f172a]"
                   >
-                    Apply <ExternalLink className="h-3.5 w-3.5" />
+                    {tx("Apply", "आवेदन")} <ExternalLink className="h-3.5 w-3.5" />
                   </a>
                 )}
               </div>
@@ -780,14 +890,43 @@ function DiscoverInner() {
                 </div>
               </div>
 
-              {/* Scrollable Description Preview */}
-              <div className="thin-scroll mt-4 max-h-[340px] overflow-y-auto pr-1">
-                <h3 className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-[#64748b]">
-                  Role Description
-                </h3>
-                <p className="whitespace-pre-wrap text-[12.5px] leading-relaxed text-[#334155]">
-                  {activeResult.job.description}
-                </p>
+              {/* Scrollable Structured Preview */}
+              <div className="thin-scroll mt-4 max-h-[360px] space-y-3 overflow-y-auto pr-1">
+                {(() => {
+                  const parsed = parseStructuredJobDescription(activeResult.job.description, activeResult.job.title);
+                  return (
+                    <>
+                      {parsed.facts.length > 0 && (
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {parsed.facts.slice(0, 4).map((f) => (
+                            <div key={f.label} className="rounded-lg bg-[#f8fafc] px-2.5 py-1.5 text-[11px]">
+                              <span className="font-semibold text-[#64748b]">{f.label}: </span>
+                              <span className="text-[#0f172a]">{f.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {parsed.sections.slice(0, 3).map((sec, si) => (
+                        <div key={`${sec.title}-${si}`} className="space-y-1.5">
+                          <div className="font-mono text-[10.5px] font-semibold uppercase tracking-wider text-[#3b5bff]">
+                            {sec.title}
+                          </div>
+                          {sec.paragraphs.slice(0, 2).map((p, pi) => (
+                            <p key={pi} className="text-[12.5px] leading-relaxed text-[#334155]">
+                              {p}
+                            </p>
+                          ))}
+                          {sec.bullets.slice(0, 3).map((b, bi) => (
+                            <div key={bi} className="flex items-start gap-2 text-[12px] text-[#334155]">
+                              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#3b5bff]" />
+                              <span>{b}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </>
+                  );
+                })()}
               </div>
             </div>
           )}

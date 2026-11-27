@@ -47,7 +47,7 @@ class JobResponse(BaseModel):
 
 
 class JobSearchRequest(BaseModel):
-    query: str = Field(min_length=1, max_length=500)
+    query: str = Field(default="", max_length=500)
     mode: Literal["hybrid", "dense", "bm25"] = "hybrid"
     use_reranker: bool = True
     region: Optional[str] = Field(default=None, max_length=16)
@@ -56,6 +56,7 @@ class JobSearchRequest(BaseModel):
     job_type: Optional[str] = Field(default=None, max_length=32)
     min_salary_usd_eq: Optional[int] = Field(default=None, ge=0)
     location_contains: Optional[str] = Field(default=None, max_length=128)
+    description_contains: Optional[str] = Field(default=None, max_length=200)
     source_name: Optional[str] = Field(default=None, max_length=64)
     limit: int = Field(default=20, ge=1, le=100)
     offset: int = Field(default=0, ge=0)

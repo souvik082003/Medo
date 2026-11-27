@@ -111,3 +111,8 @@ def test_agent_chat_routing_conversations_and_human_approval(client: TestClient,
 
     assert client.get(f"/api/v1/conversations/{conv_id}", headers=h_bob).status_code == 404
     assert client.get("/api/v1/conversations", headers=h_bob).json()["total"] == 0
+
+    # Bob cannot delete Alice's conversation; Alice can delete cleanly even with approval ref
+    assert client.delete(f"/api/v1/conversations/{conv_id}", headers=h_bob).status_code == 404
+    assert client.delete(f"/api/v1/conversations/{conv_id}", headers=h_alice).status_code == 204
+    assert client.get(f"/api/v1/conversations/{conv_id}", headers=h_alice).status_code == 404
