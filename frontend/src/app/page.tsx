@@ -8,16 +8,21 @@ import {
   ArrowRight,
   Bot,
   Briefcase,
+  Check,
+  ChevronDown,
   Database,
   FileText,
   GitBranch,
   Layers,
   Lock,
+  Menu,
   Search,
   Sparkles,
   Target,
+  X,
 } from "lucide-react";
 import { SystemArchitectureMermaid, WorkflowMermaidSection } from "@/components/ArchitectureDiagrams";
+import { MedoShowcase } from "@/components/MedoShowcase";
 import { apiFetch, setAuthSession, TokenResponse } from "@/lib/api";
 
 type ComposerMode = "discover" | "analyze" | "assistant" | "roadmap";
@@ -110,11 +115,60 @@ const WORKSPACE_MODULES = [
   },
 ];
 
+const COMPARISON_ROWS = [
+  {
+    capability: "Job Retrieval Engine",
+    wrapper: "Single keyword or raw prompt dump",
+    medo: "pgvector + BM25Okapi + RRF(k=60) + Cross-Encoder Rerank",
+  },
+  {
+    capability: "Compatibility Scoring",
+    wrapper: "Opaque hallucinated % guess",
+    medo: "12-feature calibrated ML + PairwiseTorch LTR ranking",
+  },
+  {
+    capability: "Resume Skill Extraction",
+    wrapper: "Prompted tag guessing",
+    medo: "Deterministic canonical taxonomy + verbatim resume spans",
+  },
+  {
+    capability: "External Actions & Privacy",
+    wrapper: "Unbounded auto-send risk",
+    medo: "Consent opt-in + approval_requests HITL gate + tenant isolation",
+  },
+  {
+    capability: "Grounded Career Q&A",
+    wrapper: "No document verification",
+    medo: "Iterative Agentic RAG with strict citations & injection guard",
+  },
+];
+
+const FAQS = [
+  {
+    q: "How does Medo fetch live roles across regions?",
+    a: "Medo aggregates free live connectors (Himalayas, Jobicy, Remotive, RemoteOK, Arbeitnow, HackerNews) plus optional Adzuna/Apify adapters, deduplicates listings, normalizes INR/USD salaries, and indexes embeddings for instant hybrid search.",
+  },
+  {
+    q: "Do my resumes leave my workspace without permission?",
+    a: "No. Resume parsing, canonical skill extraction, and ML compatibility scoring run strictly locally inside your isolated workspace. External LLM calls only happen if you explicitly enable Consent in Privacy & Memory.",
+  },
+  {
+    q: "What is the Human-in-the-Loop (HITL) approval gate?",
+    a: "Before any external application or privileged action proceeds, the agent writes an explicit approval_requests record that pauses execution until you Approve or Reject it inside AI Orchestrator or Privacy & Memory.",
+  },
+  {
+    q: "How are ML compatibility probabilities verified?",
+    a: "Ranking models are trained on GroupShuffleSplit zero-leakage candidate-job splits and evaluated with ROC-AUC, ECE, NDCG@10, and MRR metrics logged cleanly in Evaluation Provenance.",
+  },
+];
+
 export default function LandingPage() {
   const router = useRouter();
   const [activeMode, setActiveMode] = useState<ComposerMode>("discover");
   const [promptText, setPromptText] = useState(QUICK_BRIEFS[0]);
   const [demoLoading, setDemoLoading] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   const currentMode = MODE_META[activeMode];
 
@@ -137,34 +191,31 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fafafa] text-[#171716]">
+    <div className="min-h-screen bg-[#f6f7f9] text-[#0f172a]">
       {/* Sticky Studio Navbar */}
-      <header className="sticky top-0 z-40 border-b border-black/[0.07] bg-white/85 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
+      <header className="sticky top-0 z-40 border-b border-[#e5e7eb] bg-white/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3.5">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#171716] text-white">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#0f172a] to-[#3b5bff] text-white shadow-xs">
               <Layers className="h-4 w-4" />
             </div>
-            <span className="text-[16px] font-semibold tracking-tight">Medo</span>
-            <span className="rounded-md border border-[#4267ff]/25 bg-[#4267ff]/10 px-2 py-0.5 font-mono text-[11px] font-medium text-[#4267ff]">
+            <span className="text-[16px] font-semibold tracking-tight text-[#0f172a]">Medo</span>
+            <span className="rounded-md border border-[#3b5bff]/25 bg-[#3b5bff]/10 px-2 py-0.5 font-mono text-[10.5px] font-semibold text-[#3b5bff]">
               CAREER STUDIO
             </span>
           </Link>
 
-          <nav className="hidden items-center gap-7 text-[13px] font-medium text-[#52525b] md:flex">
-            <a href="#architecture" className="transition hover:text-[#171716]">
+          <nav className="hidden items-center gap-6 text-[13px] font-medium text-[#475569] md:flex">
+            <Link href="/" className="font-semibold text-[#0f172a] transition hover:text-[#3b5bff]">
+              Home
+            </Link>
+            <a href="#architecture" className="transition hover:text-[#0f172a]">
               Architecture
             </a>
-            <a href="#pipeline" className="transition hover:text-[#171716]">
-              RAG &amp; Agents
-            </a>
-            <a href="#workspace" className="transition hover:text-[#171716]">
-              Workspace
-            </a>
-            <Link href="/discover" className="transition hover:text-[#171716]">
+            <Link href="/discover" className="transition hover:text-[#0f172a]">
               Discovery
             </Link>
-            <Link href="/dashboard" className="transition hover:text-[#171716]">
+            <Link href="/dashboard" className="transition hover:text-[#0f172a]">
               Dashboard
             </Link>
           </nav>
@@ -174,26 +225,55 @@ export default function LandingPage() {
               type="button"
               onClick={handleDemoLogin}
               disabled={demoLoading}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#4267ff]/30 bg-[#4267ff]/[0.07] px-3 py-1.5 text-[13px] font-medium text-[#2b4eff] transition hover:bg-[#4267ff]/[0.13] disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#3b5bff]/30 bg-[#3b5bff]/[0.07] px-3.5 py-1.5 text-[13px] font-medium text-[#2948eb] transition hover:bg-[#3b5bff]/[0.13] disabled:opacity-60"
             >
               <Sparkles className="h-3.5 w-3.5" />
               {demoLoading ? "Starting Demo..." : "Try Demo"}
             </button>
             <Link
               href="/auth"
-              className="rounded-lg border border-black/10 bg-white px-3.5 py-1.5 text-[13px] font-medium text-[#171716] transition hover:border-black/20"
+              className="rounded-xl border border-[#e2e8f0] bg-white px-3.5 py-1.5 text-[13px] font-medium text-[#0f172a] transition hover:border-[#cbd5e1]"
             >
               Sign in
             </Link>
             <Link
               href="/auth?mode=register"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#171716] px-3.5 py-1.5 text-[13px] font-medium text-white transition hover:bg-[#272726]"
+              className="hidden items-center gap-1.5 rounded-xl bg-[#0f172a] px-3.5 py-1.5 text-[13px] font-medium text-white transition hover:bg-[#1e293b] sm:inline-flex"
             >
               Start free
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((p) => !p)}
+              aria-label="Toggle menu"
+              className="inline-flex rounded-xl border border-[#e2e8f0] p-1.5 text-[#0f172a] md:hidden"
+            >
+              {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            </button>
           </div>
         </div>
+        {mobileMenuOpen && (
+          <div className="border-t border-[#e5e7eb] bg-white px-6 py-3 md:hidden">
+            <div className="grid grid-cols-2 gap-2 text-[13px] font-medium text-[#475569]">
+              <Link href="/" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-2 py-1.5 text-[#0f172a] hover:bg-[#f1f5f9]">
+                Home
+              </Link>
+              <a href="#architecture" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-2 py-1.5 hover:bg-[#f1f5f9]">
+                Architecture
+              </a>
+              <Link href="/discover" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-2 py-1.5 hover:bg-[#f1f5f9]">
+                Discovery
+              </Link>
+              <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-2 py-1.5 hover:bg-[#f1f5f9]">
+                Dashboard
+              </Link>
+              <Link href="/auth?mode=register" onClick={() => setMobileMenuOpen(false)} className="col-span-2 rounded-lg px-2 py-1.5 font-semibold text-[#3b5bff] hover:bg-[#f1f5f9]">
+                Start Free
+              </Link>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Hero Section + Studio Command Composer */}
@@ -282,6 +362,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Interactive Elip-Style Guided Conversation Showcase */}
+      <MedoShowcase />
 
       {/* Mermaid-Style System Architecture Flowchart */}
       <section id="architecture" className="mx-auto max-w-6xl px-6 py-16">
@@ -401,6 +484,84 @@ export default function LandingPage() {
               </Link>
             );
           })}
+        </div>
+
+        {/* Why Medo Comparison Matrix */}
+        <div className="mt-14 atoms-card overflow-hidden">
+          <div className="border-b border-[#e5e7eb] bg-[#f8fafc] px-6 py-4">
+            <div className="font-mono text-[10.5px] font-semibold uppercase tracking-wider text-[#3b5bff]">
+              Engineering Standard
+            </div>
+            <h3 className="mt-0.5 text-[18px] font-semibold text-[#0f172a]">
+              Why Medo AI Beats Generic ChatGPT Job Wrappers
+            </h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-left text-[13px]">
+              <thead className="border-b border-[#e5e7eb] bg-white font-mono text-[11px] uppercase text-[#64748b]">
+                <tr>
+                  <th className="px-6 py-3">Capability</th>
+                  <th className="px-6 py-3">Generic Wrapper</th>
+                  <th className="px-6 py-3 text-[#3b5bff]">Medo Career Studio</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#f1f5f9] bg-white">
+                {COMPARISON_ROWS.map((row) => (
+                  <tr key={row.capability}>
+                    <td className="px-6 py-3.5 font-semibold text-[#0f172a]">{row.capability}</td>
+                    <td className="px-6 py-3.5 text-[#64748b]">{row.wrapper}</td>
+                    <td className="px-6 py-3.5 font-medium text-[#0f172a]">
+                      <span className="inline-flex items-center gap-1.5">
+                        <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+                        {row.medo}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Interactive FAQ Accordion */}
+        <div className="mt-12 grid gap-6 lg:grid-cols-12">
+          <div className="lg:col-span-4">
+            <div className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#3b5bff]">
+              Frequently Asked
+            </div>
+            <h3 className="mt-1 text-2xl font-semibold tracking-tight text-[#0f172a]">
+              Architecture, Privacy &amp; Control
+            </h3>
+            <p className="mt-2 text-[13px] leading-relaxed text-[#64748b]">
+              Everything from hybrid vector retrieval to consent-gated explanations is inspectable and verifiable.
+            </p>
+          </div>
+          <div className="space-y-2.5 lg:col-span-8">
+            {FAQS.map((item, idx) => {
+              const isOpen = openFaq === idx;
+              return (
+                <div key={item.q} className="atoms-card overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setOpenFaq(isOpen ? null : idx)}
+                    className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-[14px] font-semibold text-[#0f172a] transition hover:bg-[#f8fafc]"
+                  >
+                    <span>{item.q}</span>
+                    <ChevronDown
+                      className={`h-4 w-4 shrink-0 text-[#64748b] transition-transform ${
+                        isOpen ? "rotate-180 text-[#3b5bff]" : ""
+                      }`}
+                    />
+                  </button>
+                  {isOpen && (
+                    <div className="border-t border-[#f1f5f9] bg-[#f8fafc] px-5 py-3.5 text-[13px] leading-relaxed text-[#475569]">
+                      {item.a}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Bottom Governance & Demo Banner */}

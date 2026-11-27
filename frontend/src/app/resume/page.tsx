@@ -1,12 +1,16 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { CheckCircle2, FileText, FileUp, Sparkles } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { ArrowRight, FileText, FileUp, Sparkles } from "lucide-react";
 import { StudioShell } from "@/components/StudioShell";
+import { Banner, EmptyState } from "@/components/ui";
 import { apiFetch, ProfileBundle, ResumeUploadResponse } from "@/lib/api";
 
 export default function ResumeIntelligencePage() {
   const [bundle, setBundle] = useState<ProfileBundle | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -14,7 +18,8 @@ export default function ResumeIntelligencePage() {
   const load = () => {
     apiFetch<ProfileBundle>("/api/v1/profile")
       .then(setBundle)
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load profile"));
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load profile"))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -44,20 +49,56 @@ export default function ResumeIntelligencePage() {
     }
   };
 
+  const categories = useMemo(() => {
+    const set = new Set((bundle?.skills || []).map((s) => s.category));
+    return ["all", ...Array.from(set)];
+  }, [bundle]);
+
+  const visibleSkills = useMemo(() => {
+    const list = bundle?.skills || [];
+    return categoryFilter === "all" ? list : list.filter((s) => s.category === categoryFilter);
+  }, [bundle, categoryFilter]);
+
+  const primaryResume = bundle?.resumes.find((r) => r.is_primary) || bundle?.resumes[0];
+  const parsedSections = Object.entries(primaryResume?.parsed_sections_json || {}).filter(
+    ([, val]) => typeof val === "string" && val.trim().length > 0
+  );
+
   return (
     <StudioShell
-      title="Resume Intelligence"
-      subtitle="Structured parsing, normalized skill taxonomy, confidence scores, and evidence spans"
+      title="Resume Studio"
+      subtitle="SHA-256 versioned ingestion, canonical skill normalization, and verbatim evidence spans"
+      actions={
+        <div className="flex items-center gap-2">
+          <Link
+            href="/skills"
+            className="rounded-xl border border-[#e2e8f0] bg-white px-3.5 py-1.5 text-[12px] font-medium text-[#0f172a] hover:border-[#cbd5e1]"
+          >
+            Skill Gaps
+          </Link>
+          <Link
+            href="/recommendations"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[#0f172a] px-3.5 py-1.5 text-[12px] font-medium text-white hover:bg-[#1e293b]"
+          >
+            Match Jobs <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      }
     >
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Upload & Version History */}
-        <div className="space-y-5">
-          <label className="atoms-card flex cursor-pointer flex-col items-center justify-center border-dashed p-6 text-center transition hover:border-[#4267ff]">
-            <FileUp className="h-6 w-6 text-[#4267ff]" />
-            <span className="mt-2 text-[13px] font-semibold">
+      {message && <Banner tone="success" message={message} onClose={() => setMessage(null)} className="mb-4" />}
+      {error && <Banner tone="error" message={error} onClose={() => setError(null)} className="mb-4" />}
+
+      <div className="grid items-start gap-6 lg:grid-cols-12">
+        {/* Left Upload + Versions + Sections (4 cols) */}
+        <div className="space-y-5 lg:col-span-4">
+          <label className="atoms-card flex cursor-pointer flex-col items-center justify-center border-2 border-dashed border-[#cbd5e1] bg-white p-6 text-center transition hover:border-[#3b5bff] hover:bg-[#3b5bff]/[0.02]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#3b5bff]/10 text-[#3b5bff]">
+              <FileUp className="h-5 w-5" />
+            </div>
+            <span className="mt-3 text-[13.5px] font-semibold text-[#0f172a]">
               {uploading ? "Parsing & Embedding..." : "Upload New Resume Version"}
             </span>
-            <span className="mt-1 text-[11px] text-[#71717a]">PDF, DOCX, MD, or TXT up to 10 MB</span>
+            <span className="mt-1 text-[11.5px] text-[#64748b]">PDF, DOCX, MD, or TXT up to 10 MB</span>
             <input
               type="file"
               accept=".pdf,.docx,.md,.txt"
@@ -67,36 +108,28 @@ export default function ResumeIntelligencePage() {
             />
           </label>
 
-          {message && (
-            <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-[12px] text-emerald-800">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{message}</span>
-            </div>
-          )}
-          {error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-[12px] text-red-700">{error}</div>
-          )}
-
           <div className="atoms-card p-5">
-            <h2 className="mb-3 text-[14px] font-semibold">Resume Versions</h2>
-            {!bundle || bundle.resumes.length === 0 ? (
-              <p className="text-[12px] text-[#71717a]">No resumes uploaded yet.</p>
+            <h2 className="mb-3 text-[14px] font-semibold text-[#0f172a]">Version History</h2>
+            {loading ? (
+              <div className="skeleton h-20 w-full" />
+            ) : !bundle || bundle.resumes.length === 0 ? (
+              <p className="text-[12px] text-[#64748b]">No resumes uploaded yet.</p>
             ) : (
               <div className="space-y-2.5">
                 {bundle.resumes.map((rv) => (
-                  <div key={rv.id} className="rounded-lg border border-black/[0.07] bg-[#fafafa] p-3">
+                  <div key={rv.id} className="rounded-xl border border-[#e5e7eb] bg-[#f8fafc] p-3">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 truncate text-[13px] font-medium">
-                        <FileText className="h-3.5 w-3.5 text-[#4267ff]" />
+                      <div className="flex min-w-0 items-center gap-2 text-[13px] font-medium text-[#0f172a]">
+                        <FileText className="h-3.5 w-3.5 shrink-0 text-[#3b5bff]" />
                         <span className="truncate">{rv.filename}</span>
                       </div>
                       {rv.is_primary && (
-                        <span className="rounded bg-[#4267ff]/10 px-1.5 py-0.5 font-mono text-[10px] font-medium text-[#4267ff]">
+                        <span className="rounded-md bg-[#3b5bff]/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[#3b5bff]">
                           PRIMARY
                         </span>
                       )}
                     </div>
-                    <div className="mt-1 font-mono text-[10px] text-[#71717a]">
+                    <div className="mt-1 font-mono text-[10.5px] text-[#64748b]">
                       v{rv.version_num} · {(rv.file_size_bytes / 1024).toFixed(1)} KB · sha256:{rv.sha256_hash.slice(0, 8)}
                     </div>
                   </div>
@@ -104,52 +137,101 @@ export default function ResumeIntelligencePage() {
               </div>
             )}
           </div>
+
+          {parsedSections.length > 0 && (
+            <div className="atoms-card p-5">
+              <h2 className="mb-3 text-[14px] font-semibold text-[#0f172a]">Parsed Sections</h2>
+              <div className="space-y-2.5">
+                {parsedSections.map(([sectionName, sectionVal]) => (
+                  <div key={sectionName} className="rounded-xl border border-[#e5e7eb] bg-[#f8fafc] p-3">
+                    <div className="font-mono text-[10.5px] font-semibold uppercase text-[#3b5bff]">{sectionName}</div>
+                    <p className="mt-1 line-clamp-2 text-[11.5px] text-[#475569]">{String(sectionVal)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Verified Skills + Evidence Spans */}
-        <div className="atoms-card p-6 lg:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
+        {/* Right Canonical Skills Grid (8 cols) */}
+        <div className="atoms-card p-6 lg:col-span-8">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-[#f1f5f9] pb-4">
             <div>
-              <h2 className="flex items-center gap-2 text-[15px] font-semibold">
-                <Sparkles className="h-4 w-4 text-[#4267ff]" />
-                Canonical Skills & Grounded Evidence Spans
+              <h2 className="flex items-center gap-2 text-[15.5px] font-semibold text-[#0f172a]">
+                <Sparkles className="h-4 w-4 text-[#3b5bff]" />
+                Verified Skills &amp; Verbatim Evidence Spans
               </h2>
-              <p className="text-[12px] text-[#71717a]">
-                Every extracted skill maps synonyms to canonical taxonomy entries with verbatim resume evidence
+              <p className="mt-0.5 text-[12px] text-[#64748b]">
+                Synonyms normalize into canonical skills backed directly by lines parsed from your resume
               </p>
             </div>
-            <span className="rounded-md bg-black/[0.05] px-2.5 py-1 font-mono text-[11px]">
+            <span className="tnum rounded-lg bg-[#f1f5f9] px-2.5 py-1 font-mono text-[11px] font-semibold text-[#0f172a]">
               {bundle?.skills.length || 0} verified
             </span>
           </div>
 
-          {!bundle || bundle.skills.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-black/15 bg-[#fafafa] p-10 text-center text-[13px] text-[#71717a]">
-              Upload a resume to inspect extracted skills, confidence scores, and evidence spans.
-            </div>
-          ) : (
-            <div className="space-y-2.5">
-              {bundle.skills.map((sk) => (
-                <div key={sk.slug} className="rounded-xl border border-black/[0.07] bg-[#fafafa] p-3.5">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[14px] font-semibold text-[#171716]">{sk.canonical_name}</span>
-                      <span className="rounded bg-white px-2 py-0.5 font-mono text-[10px] text-[#52525b] border border-black/[0.06]">
-                        {sk.category}
-                      </span>
-                      <span className="rounded bg-[#4267ff]/10 px-2 py-0.5 font-mono text-[10px] text-[#4267ff]">
-                        {sk.proficiency}
-                      </span>
-                    </div>
-                    <span className="font-mono text-[12px] font-medium text-[#171716]">
-                      {(sk.confidence * 100).toFixed(0)}% conf
-                    </span>
-                  </div>
-                  <div className="mt-2 rounded-md border border-black/[0.05] bg-white px-3 py-1.5 font-mono text-[11px] text-[#52525b]">
-                    “{sk.evidence_span}”
-                  </div>
-                </div>
+          {categories.length > 1 && (
+            <div className="mb-4 flex flex-wrap gap-1.5">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setCategoryFilter(cat)}
+                  className={`rounded-lg px-2.5 py-1 font-mono text-[11px] capitalize transition ${
+                    categoryFilter === cat
+                      ? "bg-[#3b5bff] text-white shadow-2xs"
+                      : "bg-[#f8fafc] text-[#475569] ring-1 ring-[#e2e8f0] hover:text-[#0f172a]"
+                  }`}
+                >
+                  {cat}
+                </button>
               ))}
+            </div>
+          )}
+
+          {loading ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[1, 2, 3, 4].map((n) => (
+                <div key={n} className="skeleton h-28 w-full" />
+              ))}
+            </div>
+          ) : visibleSkills.length === 0 ? (
+            <EmptyState
+              icon={FileText}
+              title="No verified skills extracted yet"
+              description="Upload a PDF, DOCX, Markdown, or TXT resume on the left to extract canonical skills and generate vector embeddings."
+            />
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2">
+              {visibleSkills.map((sk) => {
+                const confPct = Math.round(sk.confidence * 100);
+                return (
+                  <div key={sk.slug} className="rounded-xl border border-[#e5e7eb] bg-[#f8fafc] p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="text-[14px] font-semibold text-[#0f172a]">{sk.canonical_name}</div>
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <span className="rounded bg-white px-2 py-0.5 font-mono text-[10px] text-[#475569] ring-1 ring-[#e2e8f0]">
+                            {sk.category}
+                          </span>
+                          <span className="rounded bg-[#3b5bff]/10 px-2 py-0.5 font-mono text-[10px] font-medium text-[#3b5bff]">
+                            {sk.proficiency}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="tnum font-mono text-[12px] font-semibold text-[#0f172a]">{confPct}%</span>
+                    </div>
+
+                    <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-[#e2e8f0]">
+                      <div className="h-full rounded-full bg-[#3b5bff]" style={{ width: `${confPct}%` }} />
+                    </div>
+
+                    <div className="mt-2.5 line-clamp-2 rounded-lg border border-[#e5e7eb] bg-white px-2.5 py-1.5 font-mono text-[10.5px] text-[#475569]">
+                      “{sk.evidence_span}”
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

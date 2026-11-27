@@ -2,8 +2,21 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowUpRight, Briefcase, CheckCircle2, FileText, Sparkles, Target } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  Bot,
+  Briefcase,
+  CheckCircle2,
+  Database,
+  FileText,
+  FileUp,
+  Globe,
+  Sparkles,
+  Target,
+} from "lucide-react";
 import { StudioShell } from "@/components/StudioShell";
+import { Banner, EmptyState, StatTile } from "@/components/ui";
 import { AnalyticsData, apiFetch, JobItem, ProfileBundle, RecommendationItem } from "@/lib/api";
 
 export default function DashboardPage() {
@@ -12,14 +25,15 @@ export default function DashboardPage() {
   const [jobs, setJobs] = useState<JobItem[]>([]);
   const [recs, setRecs] = useState<RecommendationItem[]>([]);
   const [pendingApprovals, setPendingApprovals] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
       apiFetch<AnalyticsData>("/api/v1/analytics"),
       apiFetch<ProfileBundle>("/api/v1/profile"),
-      apiFetch<{ items: JobItem[] }>("/api/v1/jobs?limit=6"),
-      apiFetch<{ items: RecommendationItem[] }>("/api/v1/recommendations?refresh=false&limit=3").catch(() => ({ items: [] })),
+      apiFetch<{ items: JobItem[] }>("/api/v1/jobs?limit=9"),
+      apiFetch<{ items: RecommendationItem[] }>("/api/v1/recommendations?refresh=false&limit=4").catch(() => ({ items: [] })),
       apiFetch<Array<{ id: string }>>("/api/v1/approvals?status=pending").catch(() => []),
     ])
       .then(([a, p, j, r, ap]) => {
@@ -29,226 +43,326 @@ export default function DashboardPage() {
         setRecs(r.items);
         setPendingApprovals(ap.length);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load dashboard"));
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load dashboard"))
+      .finally(() => setLoading(false));
   }, []);
 
   const completenessPct = Math.round((bundle?.profile?.completeness_score || 0) * 100);
+  const sourceEntries = Object.entries(analytics?.jobs_by_source || {}).sort((a, b) => b[1] - a[1]);
+  const maxSourceCount = sourceEntries.length > 0 ? Math.max(...sourceEntries.map(([, c]) => c)) : 1;
+  const funnelEntries = Object.entries(analytics?.applications_by_status || {});
 
   return (
     <StudioShell
-      title="Career Dashboard"
-      subtitle="Live database metrics across jobs, extracted skills, and applications"
+      title="Dashboard"
+      subtitle="Workspace telemetry across live jobs, verified skills, ML fit, and pipeline stages"
       actions={
-        <Link
-          href="/discover"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-[#171716] px-3.5 py-1.5 text-[12px] font-medium text-white hover:bg-[#272726]"
-        >
-          <Sparkles className="h-3.5 w-3.5" /> Discover Jobs
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/assistant"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-[#e2e8f0] bg-white px-3.5 py-1.5 text-[12.5px] font-medium text-[#0f172a] transition hover:border-[#cbd5e1]"
+          >
+            <Bot className="h-3.5 w-3.5 text-[#3b5bff]" /> Ask AI
+          </Link>
+          <Link
+            href="/discover"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[#3b5bff] px-3.5 py-1.5 text-[12.5px] font-medium text-white shadow-xs transition hover:bg-[#2948eb]"
+          >
+            <Sparkles className="h-3.5 w-3.5" /> Discover Jobs
+          </Link>
+        </div>
       }
     >
-      {error && (
-        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">
-          {error}
-        </div>
-      )}
+      {error && <Banner tone="error" message={error} onClose={() => setError(null)} className="mb-5" />}
 
       {pendingApprovals > 0 && (
-        <div className="mb-4 flex items-center justify-between rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-[13px] text-amber-900">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/80 bg-amber-50 px-4 py-3 text-[12.5px] text-amber-950">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-700" />
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-700" />
             <span>
-              <strong>{pendingApprovals}</strong> pending human-in-the-loop approval request(s) awaiting your sign-off.
+              <strong>{pendingApprovals}</strong> pending human-in-the-loop approval request(s) awaiting sign-off.
             </span>
           </div>
-          <Link href="/privacy" className="font-medium underline">
-            Review in Privacy & Approvals →
+          <Link href="/privacy" className="font-semibold text-amber-900 underline">
+            Review in Privacy &amp; Memory →
           </Link>
         </div>
       )}
 
-      {/* KPI Bento Row (Real DB counts only) */}
+      {/* Single Unified 4-Tile Telemetry Row */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="atoms-card p-4">
-          <div className="flex items-center justify-between text-[12px] text-[#71717a]">
-            <span>Indexed Jobs</span>
-            <Briefcase className="h-4 w-4 text-[#4267ff]" />
-          </div>
-          <div className="mt-2 font-mono text-2xl font-semibold text-[#171716]">
-            {analytics ? analytics.total_jobs : "—"}
-          </div>
-          <div className="mt-1 text-[11px] text-[#71717a]">Visible non-expired listings</div>
-        </div>
-
-        <div className="atoms-card p-4">
-          <div className="flex items-center justify-between text-[12px] text-[#71717a]">
-            <span>Saved Opportunities</span>
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-          </div>
-          <div className="mt-2 font-mono text-2xl font-semibold text-[#171716]">
-            {analytics ? analytics.total_saved : "—"}
-          </div>
-          <div className="mt-1 text-[11px] text-[#71717a]">Shortlisted & bookmarked</div>
-        </div>
-
-        <div className="atoms-card p-4">
-          <div className="flex items-center justify-between text-[12px] text-[#71717a]">
-            <span>Applications</span>
-            <FileText className="h-4 w-4 text-amber-600" />
-          </div>
-          <div className="mt-2 font-mono text-2xl font-semibold text-[#171716]">
-            {analytics ? analytics.total_applications : "—"}
-          </div>
-          <div className="mt-1 text-[11px] text-[#71717a]">Tracked across all stages</div>
-        </div>
-
-        <div className="atoms-card p-4">
-          <div className="flex items-center justify-between text-[12px] text-[#71717a]">
-            <span>Profile Completeness</span>
-            <Target className="h-4 w-4 text-[#4267ff]" />
-          </div>
-          <div className="mt-2 font-mono text-2xl font-semibold text-[#171716]">{completenessPct}%</div>
-          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-black/[0.06]">
-            <div className="h-full rounded-full bg-[#4267ff]" style={{ width: `${completenessPct}%` }} />
-          </div>
-        </div>
+        <StatTile
+          label="Indexed Jobs"
+          value={analytics ? analytics.total_jobs : "—"}
+          hint="Active normalized opportunities"
+          icon={Briefcase}
+          accent="indigo"
+          href="/discover"
+          loading={loading}
+        />
+        <StatTile
+          label="Saved Roles"
+          value={analytics ? analytics.total_saved : "—"}
+          hint={
+            analytics?.avg_compatibility_probability
+              ? `Avg compatibility ${Math.round(analytics.avg_compatibility_probability * 100)}%`
+              : "Shortlisted & bookmarked"
+          }
+          icon={CheckCircle2}
+          accent="emerald"
+          href="/recommendations"
+          loading={loading}
+        />
+        <StatTile
+          label="Tracked Pipeline"
+          value={analytics ? analytics.total_applications : "—"}
+          hint="Across draft to offer"
+          icon={FileText}
+          accent="amber"
+          href="/tracker"
+          loading={loading}
+        />
+        <StatTile
+          label="Profile Readiness"
+          value={`${completenessPct}%`}
+          hint={`${bundle?.skills.length || 0} verified canonical skills`}
+          icon={Target}
+          accent="indigo"
+          href="/resume"
+          loading={loading}
+        />
       </div>
 
-      {/* Main Split Grid */}
-      <div className="mt-6 grid gap-5 lg:grid-cols-3">
-        {/* Recent Opportunities */}
-        <div className="atoms-card p-5 lg:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-[15px] font-semibold">Recent Opportunities</h2>
-              <p className="text-[12px] text-[#71717a]">Normalized jobs available for matching and retrieval</p>
-            </div>
-            <Link href="/discover" className="text-[12px] font-medium text-[#4267ff] hover:underline">
-              Search all →
-            </Link>
-          </div>
-
-          {jobs.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-black/15 bg-[#fafafa] p-8 text-center">
-              <p className="text-[13px] text-[#52525b]">No jobs ingested yet.</p>
+      {/* Main Balanced 12-Col Studio Split */}
+      <div className="mt-6 grid gap-5 lg:grid-cols-12">
+        {/* Left Primary Feed (7 cols) */}
+        <div className="space-y-5 lg:col-span-7">
+          {/* Quick Workflows Strip */}
+          <div className="atoms-card flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+            <span className="text-[11.5px] font-semibold uppercase tracking-wider text-[#64748b]">Quick Workflows</span>
+            <div className="flex flex-wrap items-center gap-2">
               <Link
                 href="/discover"
-                className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#171716] px-3 py-1.5 text-[12px] font-medium text-white"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[#f8fafc] px-2.5 py-1.5 text-[12px] font-medium text-[#0f172a] ring-1 ring-[#e2e8f0] transition hover:ring-[#3b5bff]/40"
               >
-                Go to Job Discovery
+                <Globe className="h-3.5 w-3.5 text-[#3b5bff]" /> Sync 6 Sources
+              </Link>
+              <Link
+                href="/resume"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[#f8fafc] px-2.5 py-1.5 text-[12px] font-medium text-[#0f172a] ring-1 ring-[#e2e8f0] transition hover:ring-emerald-400"
+              >
+                <FileUp className="h-3.5 w-3.5 text-emerald-600" /> Upload Resume
+              </Link>
+              <Link
+                href="/recommendations"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[#f8fafc] px-2.5 py-1.5 text-[12px] font-medium text-[#0f172a] ring-1 ring-[#e2e8f0] transition hover:ring-amber-400"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-amber-600" /> Run ML Ranker
               </Link>
             </div>
-          ) : (
-            <div className="divide-y divide-black/[0.06]">
-              {jobs.map((job) => (
-                <Link
-                  key={job.id}
-                  href={`/jobs/${job.id}`}
-                  className="flex items-center justify-between gap-4 py-3 transition hover:bg-black/[0.015]"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate text-[14px] font-medium text-[#171716]">{job.title}</span>
-                      <span className="rounded bg-black/[0.05] px-1.5 py-0.5 font-mono text-[10px] text-[#52525b]">
-                        {job.region || "GLOBAL"}
-                      </span>
-                    </div>
-                    <div className="mt-0.5 text-[12px] text-[#71717a]">
-                      {job.company} · {job.location || "Unspecified"} · {job.work_mode}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {job.salary_raw && (
-                      <span className="font-mono text-[12px] text-emerald-700">{job.salary_raw}</span>
-                    )}
-                    <ArrowUpRight className="h-4 w-4 text-[#71717a]" />
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
+          </div>
 
-        {/* Skills & Pipeline Breakdown */}
-        <div className="space-y-5">
           <div className="atoms-card p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-[14px] font-semibold">Extracted Skills Profile</h2>
-              <Link href="/resume" className="text-[12px] font-medium text-[#4267ff] hover:underline">
-                Manage
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-[15px] font-semibold text-[#0f172a]">Recent Opportunities</h2>
+                <p className="text-[12px] text-[#64748b]">Normalized live openings ready for scoring &amp; retrieval</p>
+              </div>
+              <Link href="/discover" className="text-[12.5px] font-medium text-[#3b5bff] hover:underline">
+                View all →
               </Link>
             </div>
-            {!analytics || analytics.top_candidate_skills.length === 0 ? (
-              <p className="text-[12px] text-[#71717a]">
-                Upload a resume in <Link href="/resume" className="text-[#4267ff] underline">Resume Intelligence</Link> to
-                extract verified skills.
-              </p>
+
+            {loading ? (
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map((n) => (
+                  <div key={n} className="skeleton h-16 w-full" />
+                ))}
+              </div>
+            ) : jobs.length === 0 ? (
+              <EmptyState
+                icon={Briefcase}
+                title="No jobs indexed yet"
+                description="Pull live roles from 6 free job sources or add a custom opportunity to start matching."
+                actionLabel="Open Job Discovery"
+                actionHref="/discover"
+              />
             ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {analytics.top_candidate_skills.map((sk) => (
-                  <span
-                    key={sk.name}
-                    className="inline-flex items-center gap-1 rounded-md border border-black/[0.08] bg-[#fafafa] px-2 py-1 text-[11px] font-medium"
+              <div className="divide-y divide-[#f1f5f9]">
+                {jobs.map((job) => (
+                  <Link
+                    key={job.id}
+                    href={`/jobs/${job.id}`}
+                    className="group flex items-center justify-between gap-4 rounded-xl px-2 py-3 transition hover:bg-[#f8fafc]"
                   >
-                    <span>{sk.name}</span>
-                    <span className="font-mono text-[10px] text-[#4267ff]">
-                      {Math.round(sk.confidence * 100)}%
-                    </span>
-                  </span>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="truncate text-[13.5px] font-semibold text-[#0f172a] group-hover:text-[#3b5bff]">
+                          {job.title}
+                        </span>
+                        <span className="rounded-md bg-[#f1f5f9] px-1.5 py-0.5 font-mono text-[10px] font-medium text-[#475569]">
+                          {job.region || "GLOBAL"}
+                        </span>
+                        <span className="rounded-md bg-[#3b5bff]/10 px-1.5 py-0.5 font-mono text-[10px] font-medium text-[#3b5bff]">
+                          {job.source_name}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-[12px] text-[#64748b]">
+                        <span className="font-medium text-[#334155]">{job.company}</span> · {job.location || "Remote"} ·{" "}
+                        <span className="capitalize">{job.work_mode}</span>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {job.salary_raw && (
+                        <span className="rounded-md bg-emerald-50 px-2 py-0.5 font-mono text-[11px] font-medium text-emerald-700">
+                          {job.salary_raw}
+                        </span>
+                      )}
+                      <ArrowUpRight className="h-4 w-4 text-[#94a3b8] transition group-hover:translate-x-0.5 group-hover:text-[#3b5bff]" />
+                    </div>
+                  </Link>
                 ))}
               </div>
             )}
           </div>
+        </div>
 
+        {/* Right Intelligence Sidebar (5 cols) */}
+        <div className="space-y-5 lg:col-span-5">
+          {/* Top ML Matches */}
           <div className="atoms-card p-5">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-[14px] font-semibold">Top ML Matches</h2>
-              <Link href="/recommendations" className="text-[12px] font-medium text-[#4267ff] hover:underline">
-                View all
+              <h2 className="text-[14.5px] font-semibold text-[#0f172a]">Top ML Matches</h2>
+              <Link href="/recommendations" className="text-[12px] font-medium text-[#3b5bff] hover:underline">
+                See ranking →
               </Link>
             </div>
-            {recs.length === 0 ? (
-              <p className="text-[12px] text-[#71717a]">
-                Run matching in <Link href="/recommendations" className="text-[#4267ff] underline">Recommendations</Link>{" "}
-                to rank jobs by compatibility.
+            {loading ? (
+              <div className="space-y-2.5">
+                {[1, 2, 3].map((n) => (
+                  <div key={n} className="skeleton h-14 w-full" />
+                ))}
+              </div>
+            ) : recs.length === 0 ? (
+              <p className="text-[12.5px] text-[#64748b]">
+                Run scoring in <Link href="/recommendations" className="font-medium text-[#3b5bff] underline">ML Matches</Link> to
+                inspect top compatible roles.
               </p>
             ) : (
               <div className="space-y-2.5">
-                {recs.map((rec) => (
+                {recs.map((rec) => {
+                  const pct = Math.round(rec.compatibility_probability * 100);
+                  return (
+                    <Link
+                      key={rec.job.id}
+                      href={`/jobs/${rec.job.id}`}
+                      className="block rounded-xl border border-[#e5e7eb] bg-[#f8fafc] p-3 transition hover:border-[#3b5bff]/40 hover:bg-white"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate text-[13px] font-semibold text-[#0f172a]">{rec.job.title}</span>
+                        <span className="tnum shrink-0 rounded-md bg-emerald-50 px-2 py-0.5 font-mono text-[11px] font-semibold text-emerald-700">
+                          {pct}% fit
+                        </span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between text-[11.5px] text-[#64748b]">
+                        <span className="truncate">{rec.job.company}</span>
+                        <span className="font-mono text-[10px]">LTR {rec.ranking_score.toFixed(2)}</span>
+                      </div>
+                      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#e2e8f0]">
+                        <div className="h-full rounded-full bg-[#3b5bff]" style={{ width: `${pct}%` }} />
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Extracted Skills & Source Mix */}
+          <div className="atoms-card p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-[14.5px] font-semibold text-[#0f172a]">Verified Skills Profile</h2>
+              <Link href="/resume" className="text-[12px] font-medium text-[#3b5bff] hover:underline">
+                Manage →
+              </Link>
+            </div>
+            {!analytics || analytics.top_candidate_skills.length === 0 ? (
+              <p className="text-[12.5px] text-[#64748b]">
+                Upload your resume in <Link href="/resume" className="font-medium text-[#3b5bff] underline">Resume Studio</Link> to extract skills.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {analytics.top_candidate_skills.map((sk) => (
                   <Link
-                    key={rec.job.id}
-                    href={`/jobs/${rec.job.id}`}
-                    className="block rounded-lg border border-black/[0.06] bg-[#fafafa] p-2.5 transition hover:border-black/20"
+                    key={sk.name}
+                    href={`/discover?q=${encodeURIComponent(sk.name)}`}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] px-2.5 py-1 text-[11.5px] font-medium text-[#0f172a] transition hover:border-[#3b5bff]/40"
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="truncate text-[12px] font-medium text-[#171716]">{rec.job.title}</span>
-                      <span className="shrink-0 font-mono text-[11px] font-semibold text-emerald-700">
-                        {Math.round(rec.compatibility_probability * 100)}% fit
-                      </span>
-                    </div>
-                    <div className="mt-0.5 truncate text-[11px] text-[#71717a]">{rec.job.company}</div>
+                    <span>{sk.name}</span>
+                    <span className="font-mono text-[10px] font-semibold text-[#3b5bff]">
+                      {Math.round(sk.confidence * 100)}%
+                    </span>
                   </Link>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="atoms-card p-5">
-            <h2 className="mb-3 text-[14px] font-semibold">Application Funnel</h2>
-            {!analytics || Object.keys(analytics.applications_by_status).length === 0 ? (
-              <p className="text-[12px] text-[#71717a]">No tracked applications yet.</p>
-            ) : (
-              <div className="space-y-2">
-                {Object.entries(analytics.applications_by_status).map(([st, cnt]) => (
-                  <div key={st} className="flex items-center justify-between text-[12px]">
-                    <span className="capitalize text-[#52525b]">{st.replace("_", " ")}</span>
-                    <span className="rounded bg-black/[0.05] px-2 py-0.5 font-mono font-medium text-[#171716]">
-                      {cnt}
-                    </span>
-                  </div>
-                ))}
+          {/* Sources + Pipeline Compact Card */}
+          <div className="atoms-card grid gap-5 p-5 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+            <div>
+              <div className="mb-2.5 flex items-center justify-between">
+                <h3 className="flex items-center gap-1.5 text-[13px] font-semibold text-[#0f172a]">
+                  <Database className="h-3.5 w-3.5 text-[#3b5bff]" /> Sources
+                </h3>
+                <Link href="/discover" className="text-[11px] font-medium text-[#3b5bff] hover:underline">
+                  Sync
+                </Link>
               </div>
-            )}
+              {sourceEntries.length === 0 ? (
+                <p className="text-[12px] text-[#64748b]">No sources yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {sourceEntries.slice(0, 5).map(([src, cnt]) => (
+                    <div key={src} className="space-y-1">
+                      <div className="flex items-center justify-between text-[11.5px]">
+                        <span className="font-mono text-[#475569]">{src}</span>
+                        <span className="tnum font-mono font-semibold text-[#0f172a]">{cnt}</span>
+                      </div>
+                      <div className="h-1 w-full overflow-hidden rounded-full bg-[#e2e8f0]">
+                        <div
+                          className="h-full rounded-full bg-[#3b5bff]/80"
+                          style={{ width: `${Math.max(8, Math.round((cnt / maxSourceCount) * 100))}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div className="mb-2.5 flex items-center justify-between">
+                <h3 className="text-[13px] font-semibold text-[#0f172a]">Funnel</h3>
+                <Link href="/tracker" className="text-[11px] font-medium text-[#3b5bff] hover:underline">
+                  Board →
+                </Link>
+              </div>
+              {funnelEntries.length === 0 ? (
+                <p className="text-[12px] text-[#64748b]">No tracked roles yet.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {funnelEntries.map(([st, cnt]) => (
+                    <div key={st} className="flex items-center justify-between rounded-lg bg-[#f8fafc] px-2.5 py-1.5 text-[11.5px]">
+                      <span className="capitalize text-[#475569]">{st.replace("_", " ")}</span>
+                      <span className="tnum rounded bg-white px-1.5 py-0.5 font-mono text-[11px] font-semibold text-[#0f172a] ring-1 ring-[#e2e8f0]">
+                        {cnt}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
