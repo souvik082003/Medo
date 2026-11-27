@@ -67,12 +67,21 @@ class BaseJobConnector(ABC):
             time.sleep(self.min_interval_sec - elapsed)
         self._last_request_at = time.monotonic()
 
-    def _get_json(self, url: str, *, params: dict | None = None, retries: int = 2, timeout: float = 15.0) -> dict | list:
+    def _get_json(
+        self,
+        url: str,
+        *,
+        params: dict | None = None,
+        headers: dict[str, str] | None = None,
+        retries: int = 2,
+        timeout: float = 15.0,
+    ) -> dict | list:
         last_exc: Exception | None = None
+        req_headers = {"User-Agent": "Medo-CareerIntelligence/0.2", **(headers or {})}
         for attempt in range(retries + 1):
             self._throttle()
             try:
-                with httpx.Client(timeout=timeout, headers={"User-Agent": "Medo-CareerIntelligence/0.2"}) as client:
+                with httpx.Client(timeout=timeout, headers=req_headers) as client:
                     resp = client.get(url, params=params)
                     if resp.status_code == 429 or resp.status_code >= 500:
                         raise httpx.HTTPStatusError(
@@ -652,3 +661,498 @@ class JobicyConnector(BaseJobConnector):
                 application_url=url[:1024],
                 source_metadata={"industry": item.get("jobIndustry")},
             )
+
+
+def _parse_iso_dt(value: Any) -> datetime | None:
+    """Safely parse ISO-8601 timestamps into aware datetimes."""
+    if not value or not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _infer_work_mode(location_text: str | None, *, default: str = "onsite") -> str:
+    low = (location_text or "").lower()
+    if "remote" in low or "flexible" in low or "anywhere" in low:
+        return "remote"
+    if "hybrid" in low:
+        return "hybrid"
+    return default
+
+
+class TheMuseConnector(BaseJobConnector):
+    """Official The Muse public jobs API (no API key required)."""
+
+    source_name = "themuse"
+    source_type = "official_api"
+
+    BASE_URL = "https://www.themuse.com/api/public/jobs"
+
+    def fetch_jobs(self, keywords: list[str], region: str = "IN", limit: int = 25) -> Iterable[RawJobRecord]:
+        kw_tokens = _keyword_tokens(keywords)
+        candidates: list[tuple[int, dict]] = []
+        fetched_any_page = False
+        last_exc: Exception | None = None
+        for page in (1, 2):
+            try:
+                data = self._get_json(
+                    self.BASE_URL,
+                    params={"page": page, "category": "Software Engineering"},
+                )
+                fetched_any_page = True
+            except Exception as exc:
+                last_exc = exc
+                break
+            results = data.get("results", []) if isinstance(data, dict) else []
+            if not results:
+                break
+            for item in results:
+                if not isinstance(item, dict):
+                    continue
+                locs = ", ".join(loc.get("name", "") for loc in (item.get("locations") or []) if isinstance(loc, dict))
+                haystack = f"{item.get('name', '')} {locs} {(item.get('company') or {}).get('name', '')}"
+                score = _keyword_score(haystack, kw_tokens) if kw_tokens else 1
+                candidates.append((score, item))
+
+        if not fetched_any_page and last_exc is not None:
+            raise last_exc
+
+        candidates.sort(key=lambda pair: pair[0], reverse=True)
+        seen_ids: set[str] = set()
+        emitted = 0
+        for _, item in candidates:
+            if emitted >= limit:
+                break
+            ext_id = str(item.get("id") or "")
+            url = (item.get("refs") or {}).get("landing_page") or ""
+            if not url or not ext_id or ext_id in seen_ids:
+                continue
+            seen_ids.add(ext_id)
+            locs = [loc.get("name", "").strip() for loc in (item.get("locations") or []) if isinstance(loc, dict) and loc.get("name")]
+            loc_str = ", ".join(locs) if locs else "Global / Flexible"
+            desc = _strip_html(item.get("contents") or "")
+            levels = [lvl.get("name", "") for lvl in (item.get("levels") or []) if isinstance(lvl, dict)]
+            emitted += 1
+            yield RawJobRecord(
+                source=self.source_name,
+                external_id=ext_id,
+                title=(item.get("name") or "Software Engineer")[:255],
+                company=((item.get("company") or {}).get("name") or "Unknown")[:255],
+                location=loc_str[:255],
+                description=desc[:8000],
+                work_mode=_infer_work_mode(loc_str, default="hybrid"),
+                posted_at=_parse_iso_dt(item.get("publication_date")),
+                application_url=url[:1024],
+                source_metadata={"levels": levels},
+            )
+
+
+class WorkingNomadsConnector(BaseJobConnector):
+    """Official Working Nomads public remote tech jobs API (no API key required)."""
+
+    source_name = "workingnomads"
+    source_type = "official_api"
+
+    API_URL = "https://www.workingnomads.com/api/exposed_jobs/"
+
+    def fetch_jobs(self, keywords: list[str], region: str = "ALL", limit: int = 25) -> Iterable[RawJobRecord]:
+        data = self._get_json(self.API_URL, timeout=18.0)
+        if not isinstance(data, list):
+            return
+        kw_tokens = _keyword_tokens(keywords)
+        scored: list[tuple[int, dict]] = []
+        for item in data[:250]:
+            if not isinstance(item, dict):
+                continue
+            haystack = f"{item.get('title', '')} {item.get('category_name', '')} {item.get('tags', '')} {item.get('company_name', '')}"
+            score = _keyword_score(haystack, kw_tokens) if kw_tokens else 1
+            scored.append((score, item))
+
+        scored.sort(key=lambda pair: pair[0], reverse=True)
+        count = 0
+        for _, item in scored:
+            if count >= limit:
+                break
+            url = (item.get("url") or "").strip()
+            if not url:
+                continue
+            desc = _strip_html(item.get("description") or "")
+            count += 1
+            yield RawJobRecord(
+                source=self.source_name,
+                external_id=url,
+                title=(item.get("title") or "Remote Engineer")[:255],
+                company=(item.get("company_name") or "Unknown")[:255],
+                location=(item.get("location") or "Remote Worldwide")[:255],
+                description=desc[:8000],
+                work_mode="remote",
+                posted_at=_parse_iso_dt(item.get("pub_date")),
+                application_url=url[:1024],
+                source_metadata={"category": item.get("category_name"), "tags": item.get("tags")},
+            )
+
+
+class GreenhousePublicConnector(BaseJobConnector):
+    """Official Greenhouse public job board JSON API across engineering-first tech orgs (no API key required)."""
+
+    source_name = "greenhouse"
+    source_type = "official_api"
+
+    BOARDS = (
+        ("anthropic", "Anthropic"),
+        ("stripe", "Stripe"),
+        ("figma", "Figma"),
+        ("databricks", "Databricks"),
+        ("vercel", "Vercel"),
+        ("discord", "Discord"),
+    )
+
+    def fetch_jobs(self, keywords: list[str], region: str = "IN", limit: int = 25) -> Iterable[RawJobRecord]:
+        kw_tokens = _keyword_tokens(keywords)
+        candidates: list[tuple[int, str, dict]] = []
+        per_board_cap = max(4, (limit // len(self.BOARDS)) + 3)
+        succeeded_boards = 0
+        last_exc: Exception | None = None
+
+        for slug, company_name in self.BOARDS:
+            try:
+                data = self._get_json(f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs", params={"content": "true"}, timeout=12.0)
+                succeeded_boards += 1
+            except Exception as exc:
+                last_exc = exc
+                continue
+            jobs = data.get("jobs", []) if isinstance(data, dict) else []
+            board_items: list[tuple[int, str, dict]] = []
+            for item in jobs:
+                if not isinstance(item, dict):
+                    continue
+                loc_name = (item.get("location") or {}).get("name") or ""
+                haystack = f"{item.get('title', '')} {loc_name} {company_name}"
+                score = _keyword_score(haystack, kw_tokens) if kw_tokens else 1
+                if region.upper() == "IN" and "india" in loc_name.lower():
+                    score += 2
+                board_items.append((score, company_name, item))
+            board_items.sort(key=lambda pair: pair[0], reverse=True)
+            candidates.extend(board_items[:per_board_cap])
+
+        if succeeded_boards == 0 and last_exc is not None:
+            raise last_exc
+
+        candidates.sort(key=lambda pair: pair[0], reverse=True)
+        count = 0
+        for _, company_name, item in candidates:
+            if count >= limit:
+                break
+            url = (item.get("absolute_url") or "").strip()
+            ext_id = str(item.get("id") or "")
+            if not url or not ext_id:
+                continue
+            loc_name = ((item.get("location") or {}).get("name") or "Global").strip()
+            desc = _strip_html(item.get("content") or "")
+            count += 1
+            yield RawJobRecord(
+                source=self.source_name,
+                external_id=f"{company_name.lower()}-{ext_id}",
+                title=(item.get("title") or "Engineer")[:255],
+                company=company_name,
+                location=loc_name[:255],
+                description=desc[:8000],
+                work_mode=_infer_work_mode(loc_name, default="hybrid"),
+                posted_at=_parse_iso_dt(item.get("updated_at")),
+                application_url=url[:1024],
+                source_metadata={"board": company_name},
+            )
+
+
+class JSearchRapidAPIConnector(BaseJobConnector):
+    """RapidAPI JSearch aggregator (LinkedIn, Indeed, Glassdoor, ZipRecruiter via RAPIDAPI_KEY)."""
+
+    source_name = "jsearch_rapidapi"
+    source_type = "paid_api"
+
+    API_URL = "https://jsearch.p.rapidapi.com/search"
+
+    def fetch_jobs(self, keywords: list[str], region: str = "IN", limit: int = 25) -> Iterable[RawJobRecord]:
+        api_key = (self.settings.rapidapi_key or "").strip()
+        if not api_key:
+            return
+        query_role = keywords[0] if keywords else "Software Engineer"
+        loc_hint = {"IN": "India", "US": "United States", "UK": "United Kingdom", "SG": "Singapore"}.get(region.upper(), "")
+        query_str = f"{query_role} in {loc_hint}".strip() if loc_hint else query_role
+        data = self._get_json(
+            self.API_URL,
+            params={"query": query_str, "page": "1", "num_pages": "2", "date_posted": "month"},
+            headers={"X-RapidAPI-Key": api_key, "X-RapidAPI-Host": "jsearch.p.rapidapi.com"},
+            timeout=20.0,
+        )
+        items = data.get("data", []) if isinstance(data, dict) else []
+        for item in items[:limit]:
+            if not isinstance(item, dict):
+                continue
+            url = (item.get("job_apply_link") or item.get("job_google_link") or "").strip()
+            if not url:
+                continue
+            city = item.get("job_city") or ""
+            country = item.get("job_country") or ""
+            loc = ", ".join(part for part in (city, country) if part) or ("Remote" if item.get("job_is_remote") else "Unspecified")
+            sal_min = item.get("job_min_salary")
+            sal_max = item.get("job_max_salary")
+            curr = item.get("job_salary_currency") or "USD"
+            sal_raw = f"{int(sal_min)} - {int(sal_max)} {curr}" if sal_min and sal_max else None
+            yield RawJobRecord(
+                source=self.source_name,
+                external_id=str(item.get("job_id") or url),
+                title=(item.get("job_title") or "Engineer")[:255],
+                company=(item.get("employer_name") or "Unknown")[:255],
+                location=loc[:255],
+                description=(item.get("job_description") or "")[:8000],
+                salary_raw=sal_raw,
+                job_type=(item.get("job_employment_type") or "").lower() or None,
+                work_mode="remote" if item.get("job_is_remote") else "onsite",
+                posted_at=_parse_iso_dt(item.get("job_posted_at_datetime_utc")),
+                application_url=url[:1024],
+                source_metadata={"publisher": item.get("job_publisher")},
+            )
+
+
+class SerpApiGoogleJobsConnector(BaseJobConnector):
+    """SerpAPI Google Jobs structured feed (requires SERPAPI_API_KEY)."""
+
+    source_name = "serpapi_jobs"
+    source_type = "paid_api"
+
+    API_URL = "https://serpapi.com/search.json"
+
+    def fetch_jobs(self, keywords: list[str], region: str = "IN", limit: int = 25) -> Iterable[RawJobRecord]:
+        api_key = (self.settings.serpapi_api_key or "").strip()
+        if not api_key:
+            return
+        query_role = " ".join(keywords[:2]) if keywords else "AI Engineer"
+        loc_hint = {"IN": "India", "US": "United States", "UK": "United Kingdom", "SG": "Singapore", "EU": "Germany"}.get(
+            region.upper(), "India"
+        )
+        data = self._get_json(
+            self.API_URL,
+            params={"engine": "google_jobs", "q": query_role, "location": loc_hint, "api_key": api_key},
+            timeout=20.0,
+        )
+        items = data.get("jobs_results", []) if isinstance(data, dict) else []
+        for item in items[:limit]:
+            if not isinstance(item, dict):
+                continue
+            apply_opts = item.get("apply_options") or []
+            url = (apply_opts[0].get("link") if apply_opts and isinstance(apply_opts[0], dict) else None) or item.get("share_link") or ""
+            if not url:
+                continue
+            ext = item.get("detected_extensions") or {}
+            loc = (item.get("location") or loc_hint)[:255]
+            yield RawJobRecord(
+                source=self.source_name,
+                external_id=str(item.get("job_id") or url),
+                title=(item.get("title") or "Engineer")[:255],
+                company=(item.get("company_name") or "Unknown")[:255],
+                location=loc,
+                description=(item.get("description") or "")[:8000],
+                salary_raw=ext.get("salary"),
+                job_type=(ext.get("schedule_type") or "").lower() or None,
+                work_mode="remote" if ext.get("work_from_home") else _infer_work_mode(loc, default="onsite"),
+                application_url=url[:1024],
+                source_metadata={"via": item.get("via")},
+            )
+
+
+def build_sources_catalog(settings: Settings | None = None) -> list[dict[str, Any]]:
+    """Return every supported free & paid job API connector with exact USD/INR pricing metadata."""
+    cfg = settings or get_settings()
+    adzuna_ready = bool((cfg.adzuna_app_id or "").strip() and (cfg.adzuna_app_key or "").strip())
+    apify_ready = bool((cfg.apify_api_token or "").strip())
+    rapidapi_ready = bool((cfg.rapidapi_key or "").strip())
+    serpapi_ready = bool((cfg.serpapi_api_key or "").strip())
+
+    return [
+        {
+            "id": "himalayas",
+            "name": "Himalayas Remote",
+            "category": "free_public",
+            "is_free": True,
+            "requires_key": False,
+            "is_configured": True,
+            "env_vars": [],
+            "pricing_usd": "$0 / Forever Free",
+            "pricing_inr": "₹0 / हमेशा मुफ़्त",
+            "free_tier": "Public JSON feed, no API key needed",
+            "coverage": "Global remote roles with salary & timezone tags",
+            "signup_url": "https://himalayas.app/jobs/api",
+        },
+        {
+            "id": "jobicy",
+            "name": "Jobicy Remote Tech",
+            "category": "free_public",
+            "is_free": True,
+            "requires_key": False,
+            "is_configured": True,
+            "env_vars": [],
+            "pricing_usd": "$0 / Forever Free",
+            "pricing_inr": "₹0 / हमेशा मुफ़्त",
+            "free_tier": "Public API v2, no API key needed",
+            "coverage": "Remote tech, DevOps, AI/ML & product engineering",
+            "signup_url": "https://jobicy.com/api/v2/remote-jobs",
+        },
+        {
+            "id": "remotive",
+            "name": "Remotive",
+            "category": "free_public",
+            "is_free": True,
+            "requires_key": False,
+            "is_configured": True,
+            "env_vars": [],
+            "pricing_usd": "$0 / Forever Free",
+            "pricing_inr": "₹0 / हमेशा मुफ़्त",
+            "free_tier": "Public REST feed, no API key needed",
+            "coverage": "Curated remote software & data roles",
+            "signup_url": "https://remotive.com/api/remote-jobs",
+        },
+        {
+            "id": "remoteok",
+            "name": "RemoteOK",
+            "category": "free_public",
+            "is_free": True,
+            "requires_key": False,
+            "is_configured": True,
+            "env_vars": [],
+            "pricing_usd": "$0 / Forever Free",
+            "pricing_inr": "₹0 / हमेशा मुफ़्त",
+            "free_tier": "Public JSON feed, no API key needed",
+            "coverage": "Worldwide remote startups & transparent salaries",
+            "signup_url": "https://remoteok.com/api",
+        },
+        {
+            "id": "arbeitnow",
+            "name": "Arbeitnow",
+            "category": "free_public",
+            "is_free": True,
+            "requires_key": False,
+            "is_configured": True,
+            "env_vars": [],
+            "pricing_usd": "$0 / Forever Free",
+            "pricing_inr": "₹0 / हमेशा मुफ़्त",
+            "free_tier": "Public REST API, no API key needed",
+            "coverage": "EU, Germany & global remote visa-sponsored engineering",
+            "signup_url": "https://www.arbeitnow.com/api/job-board-api",
+        },
+        {
+            "id": "hackernews",
+            "name": "HN Who is Hiring",
+            "category": "free_public",
+            "is_free": True,
+            "requires_key": False,
+            "is_configured": True,
+            "env_vars": [],
+            "pricing_usd": "$0 / Forever Free",
+            "pricing_inr": "₹0 / हमेशा मुफ़्त",
+            "free_tier": "Official Algolia + Firebase HN API, no key needed",
+            "coverage": "Direct Y Combinator startup & founding engineer threads",
+            "signup_url": "https://news.ycombinator.com",
+        },
+        {
+            "id": "themuse",
+            "name": "The Muse Engineering",
+            "category": "free_public",
+            "is_free": True,
+            "requires_key": False,
+            "is_configured": True,
+            "env_vars": [],
+            "pricing_usd": "$0 / Forever Free",
+            "pricing_inr": "₹0 / हमेशा मुफ़्त",
+            "free_tier": "Public API (~500 req/hr unauthenticated)",
+            "coverage": "Global & hybrid software engineering teams",
+            "signup_url": "https://www.themuse.com/developers/api/v2",
+        },
+        {
+            "id": "workingnomads",
+            "name": "Working Nomads",
+            "category": "free_public",
+            "is_free": True,
+            "requires_key": False,
+            "is_configured": True,
+            "env_vars": [],
+            "pricing_usd": "$0 / Forever Free",
+            "pricing_inr": "₹0 / हमेशा मुफ़्त",
+            "free_tier": "Public exposed jobs feed, no API key needed",
+            "coverage": "Worldwide remote engineering, cloud & design jobs",
+            "signup_url": "https://www.workingnomads.com/jobs",
+        },
+        {
+            "id": "greenhouse",
+            "name": "Greenhouse ATS (Top AI/Tech)",
+            "category": "free_public",
+            "is_free": True,
+            "requires_key": False,
+            "is_configured": True,
+            "env_vars": [],
+            "pricing_usd": "$0 / Forever Free",
+            "pricing_inr": "₹0 / हमेशा मुफ़्त",
+            "free_tier": "Official public company ATS boards (Anthropic, Stripe, Figma, Databricks, Vercel, Discord)",
+            "coverage": "Direct Tier-1 engineering company career boards (India, US, EU)",
+            "signup_url": "https://developers.greenhouse.io/job-board.html",
+        },
+        {
+            "id": "adzuna",
+            "name": "Adzuna Jobs API",
+            "category": "paid_api_key",
+            "is_free": False,
+            "requires_key": True,
+            "is_configured": adzuna_ready,
+            "env_vars": ["ADZUNA_APP_ID", "ADZUNA_APP_KEY"],
+            "pricing_usd": "$0 Free Tier (250 calls/day) · Custom commercial plans",
+            "pricing_inr": "₹0 मुफ़्त टियर (250 calls/दिन) · पेड कमर्शियल प्लान",
+            "free_tier": "250 API calls/day free for India (in), US, UK, SG",
+            "coverage": "Direct regional India (IN), UK, US & SG salary-backed roles",
+            "signup_url": "https://developer.adzuna.com",
+        },
+        {
+            "id": "jsearch_rapidapi",
+            "name": "JSearch (RapidAPI)",
+            "category": "paid_api_key",
+            "is_free": False,
+            "requires_key": True,
+            "is_configured": rapidapi_ready,
+            "env_vars": ["RAPIDAPI_KEY"],
+            "pricing_usd": "$0 Basic (200 req/mo) · $25/mo Pro (10k req) · $75/mo Ultra (50k req)",
+            "pricing_inr": "₹0 बेसिक (200/माह) · ~₹2,100/माह Pro · ~₹6,300/माह Ultra",
+            "free_tier": "200 requests/month free on RapidAPI Basic",
+            "coverage": "Aggregates LinkedIn, Indeed, Glassdoor & ZipRecruiter in 1 call",
+            "signup_url": "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch/pricing",
+        },
+        {
+            "id": "serpapi_jobs",
+            "name": "SerpAPI Google Jobs",
+            "category": "paid_api_key",
+            "is_free": False,
+            "requires_key": True,
+            "is_configured": serpapi_ready,
+            "env_vars": ["SERPAPI_API_KEY"],
+            "pricing_usd": "$0 Free (100 searches/mo) · $75/mo Developer (5,000 searches)",
+            "pricing_inr": "₹0 मुफ़्त (100/माह) · ~₹6,300/माह Developer (5,000 searches)",
+            "free_tier": "100 live Google Jobs searches/month free",
+            "coverage": "Exact Google Jobs index for Bengaluru, Hyderabad, Pune & Global",
+            "signup_url": "https://serpapi.com/pricing",
+        },
+        {
+            "id": "apify_linkedin",
+            "name": "Apify LinkedIn Scraper",
+            "category": "paid_api_key",
+            "is_free": False,
+            "requires_key": True,
+            "is_configured": apify_ready,
+            "env_vars": ["APIFY_API_TOKEN"],
+            "pricing_usd": "$5/mo Free Starter credit · $49/mo Starter (~$0.002/job)",
+            "pricing_inr": "~₹420/माह मुफ़्त क्रेडिट · ~₹4,150/माह Starter (~₹0.17/job)",
+            "free_tier": "$5/month free platform credit (~1,500–2,000 LinkedIn jobs/mo)",
+            "coverage": "Live LinkedIn job listings by exact role, city & seniority",
+            "signup_url": "https://apify.com/pricing",
+        },
+    ]
+

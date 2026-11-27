@@ -4,25 +4,24 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Activity,
   ArrowRight,
-  Bot,
-  Briefcase,
   Check,
-  ChevronDown,
-  Database,
-  FileText,
+  Compass,
   GitBranch,
-  Lock,
   Menu,
-  Search,
+  Minus,
+  Plus,
+  ShieldCheck,
   Sparkles,
   Target,
   X,
 } from "lucide-react";
 import { SystemArchitectureMermaid, WorkflowMermaidSection } from "@/components/ArchitectureDiagrams";
+import { MedoDeepDive } from "@/components/MedoDeepDive";
+import { MedoHero3D } from "@/components/MedoHero3D";
 import { MedoMark } from "@/components/MedoLogo";
 import { MedoShowcase } from "@/components/MedoShowcase";
+import { MedoStudioBento } from "@/components/MedoStudioBento";
 import { apiFetch, setAuthSession, TokenResponse } from "@/lib/api";
 import { LanguageToggle, useLanguage } from "@/lib/i18n";
 
@@ -64,12 +63,12 @@ const MODE_META: Record<
     placeholderHi: "करियर ऑर्केस्ट्रेटर से जॉब तुलना, इंटरव्यू तैयारी या रोडमैप पूछें...",
   },
   roadmap: {
-    labelEn: "Career Roadmap",
-    labelHi: "करियर रोडमैप",
-    route: "/roadmap",
-    pipeline: "Skill-Gap Graph · Market Signals · Learning Plan",
-    placeholderEn: "Build a 12-week transition roadmap for Staff AI Retrieval Engineer...",
-    placeholderHi: "AI Retrieval Engineer बनने के लिए 12-सप्ताह का रोडमैप बनाएँ...",
+    labelEn: "30 Roadmaps",
+    labelHi: "30 रोडमैप्स",
+    route: "/roadmaps",
+    pipeline: "Interactive Role Flowcharts · How to Learn · AI Tutor",
+    placeholderEn: "Explore AI Engineer, Backend, Full Stack, DevOps, SQL & UX roadmaps...",
+    placeholderHi: "AI इंजीनियर, बैकएंड, फुल स्टैक, DevOps और SQL रोडमैप देखें...",
   },
 };
 
@@ -90,63 +89,6 @@ const SYSTEM_PILLARS = [
   { value: "14", labelEn: "Validated Tools", labelHi: "सत्यापित टूल्स", detail: "Pydantic schemas · zero shell" },
   { value: "12", labelEn: "ML/LTR Features", labelHi: "ML रैंकिंग फ़ीचर्स", detail: "Calibrated + Pairwise Torch" },
   { value: "3-Tier", labelEn: "Isolated Memory", labelHi: "सुरक्षित मेमोरी", detail: "HITL approval_requests gate" },
-];
-
-const WORKSPACE_MODULES = [
-  {
-    href: "/discover",
-    titleEn: "Hybrid Job Discovery",
-    titleHi: "हाइब्रिड जॉब खोज",
-    tag: "pgvector + BM25",
-    descEn: "Semantic + lexical search with RRF fusion, Area/Region filters, and normalized INR/USD salaries.",
-    descHi: "सिमैंटिक और सटीक कीवर्ड सर्च के साथ शहर, क्षेत्र और वेतन फ़िल्टर।",
-    icon: Search,
-  },
-  {
-    href: "/recommendations",
-    titleEn: "Calibrated ML & LTR",
-    titleHi: "ML योग्यता और रैंकिंग",
-    tag: "12 Features",
-    descEn: "Inspect calibrated fit probabilities, pairwise LTR ordering, and exact per-feature drivers.",
-    descHi: "हर नौकरी के लिए सटीक फिट प्रतिशत और कौशल मिलान विवरण देखें।",
-    icon: Sparkles,
-  },
-  {
-    href: "/resume",
-    titleEn: "Resume Intelligence",
-    titleHi: "रेज़्यूमे स्टूडियो",
-    tag: "Evidence Spans",
-    descEn: "Upload PDF/DOCX/MD resumes for SHA-256 versioning, canonical skill mapping, and gap analysis.",
-    descHi: "रेज़्यूमे अपलोड कर स्वचालित कौशल वर्गीकरण और प्रमाणित साक्ष्य प्राप्त करें।",
-    icon: FileText,
-  },
-  {
-    href: "/assistant",
-    titleEn: "LangGraph & Cited RAG",
-    titleHi: "AI ऑर्केस्ट्रेटर और RAG",
-    tag: "6 Specialists",
-    descEn: "Multi-agent career orchestration with Ollama/LLM synthesis, traceable tools, and citations.",
-    descHi: "हिंदी और अंग्रेजी में Ollama AI करियर सलाह और प्रमाणित दस्तावेज़ खोज।",
-    icon: Bot,
-  },
-  {
-    href: "/tracker",
-    titleEn: "Application Pipeline",
-    titleHi: "आवेदन पाइपलाइन ट्रैकर",
-    tag: "HITL Controlled",
-    descEn: "Kanban & Table stage tracking from Draft to Offer with explicit approval gates.",
-    descHi: "ड्राफ़्ट से ऑफ़र तक हर आवेदन चरण को कैनबन बोर्ड पर ट्रैक करें।",
-    icon: Briefcase,
-  },
-  {
-    href: "/privacy",
-    titleEn: "Privacy, Memory & Audit",
-    titleHi: "गोपनीयता और सुरक्षा",
-    tag: "Zero-Trust",
-    descEn: "Manage LLM consent, review pending approvals, inspect 3-tier memory, or check audit trails.",
-    descHi: "AI सहमति, मानव अनुमोदन, 3-स्तरीय मेमोरी और ऑडिट लॉग नियंत्रित करें।",
-    icon: Lock,
-  },
 ];
 
 const COMPARISON_ROWS = [
@@ -192,30 +134,84 @@ const COMPARISON_ROWS = [
   },
 ];
 
-const FAQS = [
+type FaqCategory = "all" | "architecture" | "ml" | "ai" | "privacy";
+
+const FAQS: Array<{
+  cat: Exclude<FaqCategory, "all">;
+  qEn: string;
+  qHi: string;
+  aEn: string;
+  aHi: string;
+}> = [
   {
-    qEn: "How does Medo fetch live roles across regions?",
-    qHi: "Medo विभिन्न क्षेत्रों से लाइव नौकरियाँ कैसे लाता है?",
-    aEn: "Medo aggregates free live connectors (Himalayas, Jobicy, Remotive, RemoteOK, Arbeitnow, HackerNews), deduplicates listings, strips HTML cleanly, normalizes salaries, and indexes embeddings for hybrid search.",
-    aHi: "Medo 6 मुफ्त लाइव जॉब स्रोतों (Himalayas, Jobicy, Remotive, RemoteOK, Arbeitnow, HackerNews) से सीधे नौकरियाँ एकत्र करता है, डुप्लिकेट हटाता है और उन्हें सटीक सर्च के लिए इंडेक्स करता है।",
+    cat: "architecture",
+    qEn: "How does Medo fetch and normalize live jobs with zero mock data?",
+    qHi: "Medo बिना किसी नकली डेटा के 6 लाइव स्रोतों से नौकरियाँ कैसे लाता है?",
+    aEn: "Async connectors fetch live feeds from Himalayas, Jobicy, Remotive, RemoteOK, Arbeitnow, and HackerNews. Each posting runs through HTML stripping, city/region extraction, INR/USD salary normalization, 3-layer SHA/URL deduplication, and 384-d vector indexing.",
+    aHi: "एसिंक कनेक्टर्स Himalayas, Jobicy, Remotive, RemoteOK, Arbeitnow और HackerNews से वास्तविक नौकरियाँ लाते हैं। हर पोस्ट से HTML साफ़ किया जाता है, शहर/वेतन समान किया जाता है, और डुप्लिकेट हटाकर वेक्टर इंडेक्स में सहेजा जाता है।",
   },
   {
-    qEn: "Do my resumes leave my workspace without permission?",
-    qHi: "क्या मेरा रेज़्यूमे बिना अनुमति के बाहर भेजा जाता है?",
-    aEn: "No. Resume parsing, skill extraction, local Ollama inference, and ML scoring run locally. External cloud LLM calls happen only if you enable Consent in Privacy & Memory.",
-    aHi: "नहीं। रेज़्यूमे पार्सिंग, कौशल पहचान, लोकल Ollama AI और ML स्कोरिंग आपके सिस्टम में सुरक्षित रहते हैं। बाहरी क्लाउड LLM तभी उपयोग होता है जब आप अनुमति देते हैं।",
+    cat: "ml",
+    qEn: "How does Hybrid Search combine pgvector, BM25, Area & Exact-in-JD filters?",
+    qHi: "हाइब्रिड सर्च pgvector, BM25, एरिया और Exact-in-JD फ़िल्टर को कैसे जोड़ता है?",
+    aEn: "Dense Sentence Transformer similarity finds semantic matches while BM25Okapi scores exact keywords inside full descriptions. Reciprocal Rank Fusion (RRF, k=60) merges both lists cleanly, followed by SQL Region/City/Salary filtering and CrossEncoder neural reranking.",
+    aHi: "वेक्टर समानता अर्थ के अनुसार नौकरियाँ ढूँढती है जबकि BM25 विवरण में सटीक कीवर्ड मिलाता है। दोनों को RRF(k=60) से जोड़ा जाता है और फिर शहर, कार्य मोड, वेतन फ़िल्टर तथा CrossEncoder री-रैंकिंग लागू होती है।",
   },
   {
+    cat: "ml",
+    qEn: "How are the 12-feature ML compatibility % and LTR scores computed?",
+    qHi: "12-फ़ीचर ML फिट प्रतिशत और LTR रैंकिंग स्कोर कैसे निकाले जाते हैं?",
+    aEn: "For each candidate-job pair, Medo computes exact required/preferred skill coverage, title/profile semantic cosine similarity, experience/seniority deltas, location/work-mode fit, and salary alignment. Models are trained on zero-leakage GroupShuffleSplit pairs (ROC-AUC 0.979, NDCG@10 0.986).",
+    aHi: "हर जोड़ी के लिए 12 फ़ीचर (कौशल ओवरलैप, अनुभव अंतर, लोकेशन, सैलरी और सिमैंटिक समानता) निकाले जाते हैं। कैलिब्रेटेड क्लासिफ़ायर (ROC-AUC 0.979) और PairwiseTorch रैंकर (NDCG@10 0.986) सटीक स्कोर देते हैं।",
+  },
+  {
+    cat: "ai",
+    qEn: "How does the 6-Agent LangGraph Orchestrator work with local Ollama?",
+    qHi: "6-एजेंट LangGraph ऑर्केस्ट्रेटर लोकल Ollama के साथ कैसे काम करता है?",
+    aEn: "Your query routes through a bounded LangGraph supervisor across ProfileIntelligence, JobDiscovery, JobMatching, CareerAdvisor, ApplicationAssistant, and MemoryAgent using 14 strict Pydantic tools (no arbitrary shell execution). Local Ollama (llama3.2) then synthesizes honest answers—explicitly naming gaps when a role does not fit.",
+    aHi: "आपका प्रश्न 6 विशेषज्ञ एजेंट्स और 14 सुरक्षित Pydantic टूल्स के बीच राउट होता है। अंत में लोकल Ollama (llama3.2) ईमानदारी से विश्लेषण देता है—अगर कौशल कम हैं तो साफ़ कमियाँ और सीखने के कदम बताता है।",
+  },
+  {
+    cat: "ai",
+    qEn: "Does the entire app and AI Orchestrator support Hindi (हिंदी) + English?",
+    qHi: "क्या पूरा वेब ऐप और AI ऑर्केस्ट्रेटर हिंदी (हिंदी) और अंग्रेजी दोनों में काम करता है?",
+    aEn: "Yes. Clicking EN | हिंदी in any navbar switches every screen immediately and sends your active language preference to /api/v1/agent/chat and /api/v1/rag/query so Ollama responds naturally in Hindi or English.",
+    aHi: "हाँ। ऊपर दिए गए EN | हिंदी टॉगल से पूरा प्लेटफ़ॉर्म तुरंत बदल जाता है और AI ऑर्केस्ट्रेटर व Cited RAG सीधे हिंदी में उत्तर देते हैं।",
+  },
+  {
+    cat: "architecture",
+    qEn: "How does Iterative Agentic RAG prevent hallucinations and prompt injection?",
+    qHi: "Iterative Agentic RAG गलत जानकारी और प्रॉम्प्ट इंजेक्शन से कैसे बचाता है?",
+    aEn: "Uploaded career notes are chunked per-user and scrubbed for indirect prompt-injection overrides. If initial retrieval similarity is low, the RAG graph rewrites the query up to 2 times before generating cited answers grounded strictly in retrieved snippets.",
+    aHi: "आपके दस्तावेज़ यूज़र-वार अलग इंडेक्स होते हैं और संदिग्ध प्रॉम्प्ट इंजेक्शन हटाए जाते हैं। कम स्कोर मिलने पर सिस्टम क्वेरी को 2 बार तक सुधारकर केवल प्रमाणित अंशों से उद्धरण सहित उत्तर देता है।",
+  },
+  {
+    cat: "ml",
+    qEn: "How does Resume Intelligence extract verified skills without guessing?",
+    qHi: "रेज़्यूमे स्टूडियो बिना अनुमान लगाए सटीक कौशल कैसे निकालता है?",
+    aEn: "The deterministic resume parser stores SHA-256 versioned files, normalizes aliases (like 'py' or 'k8s') into canonical taxonomy entries, assigns proficiency estimates, and attaches exact verbatim evidence lines copied directly from your resume sections.",
+    aHi: "पार्सर SHA-256 वर्जन नियंत्रण के साथ समानार्थी शब्दों को मानक कौशलों में बदलता है और हर कौशल के साथ आपके रेज़्यूमे की मूल प्रमाणित पंक्ति दिखाता है।",
+  },
+  {
+    cat: "privacy",
     qEn: "What is the Human-in-the-Loop (HITL) approval gate?",
-    qHi: "ह्यूमन-इन-द-लूप (HITL) अनुमोदन गेट क्या है?",
-    aEn: "Before any external submission or sensitive action proceeds, the agent creates an explicit approval_requests record that pauses execution until you Approve or Reject it.",
-    aHi: "किसी भी बाहरी आवेदन को सबमिट करने से पहले सिस्टम एक स्पष्ट अनुमोदन अनुरोध बनाता है और आपकी मंज़ूरी के बिना कोई कार्रवाई नहीं करता।",
+    qHi: "ह्यूमन-इन-द-लूप (HITL) अनुमोदन गेट कैसे सुरक्षा सुनिश्चित करता है?",
+    aEn: "Medo never auto-submits applications or sends emails behind your back. High-impact external actions pause and create a database approval_requests record in Privacy & Memory that executes only after you click Approve.",
+    aHi: "Medo आपकी अनुमति के बिना कभी कोई बाहरी आवेदन या ईमेल नहीं भेजता। हर संवेदनशील कार्रवाई अनुमोदन द्वार पर रुकती है और आपके 'Approve' दबाने पर ही आगे बढ़ती है।",
   },
   {
-    qEn: "How are ML compatibility probabilities verified?",
-    qHi: "ML फिट प्रतिशत की सटीकता कैसे सत्यापित होती है?",
-    aEn: "Ranking models are trained on zero-leakage GroupShuffleSplit candidate-job splits and tracked via ROC-AUC, ECE, NDCG@10, and MRR evaluation metrics.",
-    aHi: "मॉडल को ज़ीरो-लीकेज विभाजन पर ट्रेन किया गया है और ROC-AUC, ECE, NDCG@10 और MRR मेट्रिक्स के माध्यम से लगातार मापा जाता है।",
+    cat: "privacy",
+    qEn: "Do my resumes or private career notes leave my machine?",
+    qHi: "क्या मेरा रेज़्यूमे या निजी नोट्स बाहरी सर्वर पर भेजे जाते हैं?",
+    aEn: "No. Resume parsing, local SentenceTransformer embeddings, ML compatibility ranking, and local Ollama inference stay inside your workspace. External LLM calls require explicit Consent opt-in.",
+    aHi: "नहीं। रेज़्यूमे पार्सिंग, वेक्टर स्कोरिंग और लोकल Ollama AI सब आपके लोकल सिस्टम में रहते हैं। बाहरी क्लाउड LLM के लिए स्पष्ट सहमति आवश्यक है।",
+  },
+  {
+    cat: "architecture",
+    qEn: "How do the 30 Interactive Roadmaps connect with How-to-Learn & AI tutoring?",
+    qHi: "30 इंटरैक्टिव रोडमैप्स 'कैसे सीखें' और AI ट्यूटर से कैसे जुड़े हैं?",
+    aEn: "Visit /roadmaps to browse 30 role blueprints (AI, Backend, Full Stack, DevOps, SQL, AWS, Docker, Kubernetes, Mobile, Product/UX). Click any yellow milestone or peach topic node to inspect what it is, step-by-step learning order, curated books/courses, progress checkmarks, and an on-demand Ollama tutor.",
+    aHi: "/roadmaps पर 30 भूमिकाओं (AI, बैकएंड, फुल स्टैक, DevOps, SQL, Product/UX) के फ्लोचार्ट उपलब्ध हैं। किसी भी बॉक्स पर क्लिक करके उसका विवरण, सीखने के चरण, कोर्स/किताबें और AI पाठ तुरंत देख सकते हैं।",
   },
 ];
 
@@ -226,7 +222,10 @@ export default function LandingPage() {
   const [promptText, setPromptText] = useState(QUICK_BRIEFS_EN[0]);
   const [demoLoading, setDemoLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [faqCategory, setFaqCategory] = useState<FaqCategory>("all");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+
+  const visibleFaqs = faqCategory === "all" ? FAQS : FAQS.filter((f) => f.cat === faqCategory);
 
   const currentMode = MODE_META[activeMode];
   const quickBriefs = lang === "hi" ? QUICK_BRIEFS_HI : QUICK_BRIEFS_EN;
@@ -332,93 +331,203 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section + Studio Command Composer */}
-      <section className="atoms-grid-bg relative border-b border-black/[0.07] px-6 pb-16 pt-14">
-        <div className="mx-auto max-w-5xl text-center">
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-black/[0.08] bg-white px-3.5 py-1 text-[12px] font-medium text-[#52525b] shadow-2xs">
-            <span className="h-2 w-2 rounded-full bg-[#3b5bff]" />
-            <span>
+      {/* Hero Stage: Split Editorial Composer + Interactive 3D Mobile Webapp Showcase */}
+      <section className="atoms-grid-bg relative overflow-hidden border-b border-black/[0.07] px-6 pb-16 pt-10 lg:pt-14">
+        <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-12">
+          {/* Left Column (6 cols) */}
+          <div className="lg:col-span-6">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-black/[0.08] bg-white px-3.5 py-1 text-[11.5px] font-medium text-[#52525b] shadow-2xs">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-[#3b5bff]" />
+              <span>
+                {tx(
+                  "ML Compatibility · Hybrid BM25 + pgvector · 30 Interactive Roadmaps",
+                  "ML योग्यता · हाइब्रिड सर्च · हिंदी व अंग्रेजी AI · 30 रोडमैप्स"
+                )}
+              </span>
+            </div>
+
+            <h1 className="text-4xl font-semibold tracking-tight text-[#0f172a] sm:text-5xl sm:leading-[1.1]">
+              {tx("Your AI career engine, in ", "आपका पूरा AI करियर सिस्टम — ")}
+              <span className="bg-gradient-to-r from-[#3b5bff] via-indigo-600 to-[#0f172a] bg-clip-text text-transparent">
+                {tx("pocket & studio.", "मोबाइल और स्टूडियो दोनों में।")}
+              </span>
+            </h1>
+
+            <p className="mt-4 max-w-xl text-[14.5px] leading-relaxed text-[#475569]">
               {tx(
-                "ML Compatibility · Hybrid BM25 + pgvector · LangGraph Agents",
-                "ML योग्यता · हाइब्रिड BM25 + pgvector · हिंदी व अंग्रेजी AI एजेंट्स"
+                "Engineered as an inspectable AI career platform—uniting live 6-source job ingestion, hybrid RRF search, 12-feature compatibility scoring, local Ollama multi-agent chat, and 30 visual learning roadmaps.",
+                "6 लाइव जॉब स्रोतों से रियल-टाइम नौकरियाँ, हाइब्रिड खोज, सटीक ML योग्यता स्कोरिंग, लोकल Ollama हिंदी/अंग्रेजी AI असिस्टेंट और 30 इंटरैक्टिव करियर रोडमैप्स।"
               )}
-            </span>
+            </p>
+
+            {/* Studio Command Composer */}
+            <form
+              onSubmit={handleLaunch}
+              className="atoms-card mt-6 p-4 text-left shadow-lg shadow-slate-900/[0.05]"
+            >
+              <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+                <div className="atoms-segmented flex-wrap">
+                  {(Object.keys(MODE_META) as ComposerMode[]).map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      data-active={activeMode === key}
+                      onClick={() => setActiveMode(key)}
+                      className="atoms-segmented-btn text-[11.5px]"
+                    >
+                      {tx(MODE_META[key].labelEn, MODE_META[key].labelHi)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <textarea
+                rows={2}
+                value={promptText}
+                onChange={(e) => setPromptText(e.target.value)}
+                placeholder={tx(currentMode.placeholderEn, currentMode.placeholderHi)}
+                className="studio-input resize-none px-3.5 py-2.5 text-[13.5px]"
+              />
+
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2.5">
+                <div className="flex flex-wrap gap-1.5">
+                  {quickBriefs.map((brief, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setPromptText(brief)}
+                      className="rounded-md border border-[#e2e8f0] bg-[#f8fafc] px-2.5 py-1 text-[11px] text-[#475569] transition hover:border-[#cbd5e1] hover:text-[#0f172a]"
+                    >
+                      {tx(`Example ${idx + 1}`, `उदाहरण ${idx + 1}`)}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#0f172a] px-4 py-2 text-[12.5px] font-medium text-white shadow-xs transition hover:bg-[#3b5bff]"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {tx("Launch Workspace", "वर्कस्पेस खोलें")}
+                </button>
+              </div>
+            </form>
+
+            {/* Compact System Pillars */}
+            <div className="mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+              {SYSTEM_PILLARS.map((item) => (
+                <div key={item.labelEn} className="atoms-card px-3.5 py-2.5 text-left">
+                  <div className="font-mono text-lg font-bold text-[#0f172a]">{item.value}</div>
+                  <div className="text-[11.5px] font-semibold text-[#0f172a]">{tx(item.labelEn, item.labelHi)}</div>
+                  <div className="truncate font-mono text-[9.5px] text-[#64748b]">{item.detail}</div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <h1 className="mx-auto max-w-3xl text-4xl font-semibold tracking-tight text-[#0f172a] sm:text-5xl sm:leading-[1.12]">
-            {tx("Turn your career profile into ", "अपने करियर प्रोफ़ाइल को बदलें ")}
-            <span className="bg-gradient-to-r from-[#3b5bff] to-[#0f172a] bg-clip-text text-transparent">
-              {tx("evidence-backed job intelligence", "प्रमाणित जॉब इंटेलिजेंस में")}
-            </span>
-          </h1>
+          {/* Right Column (6 cols): True Interactive 3D Mobile Webapp */}
+          <div className="lg:col-span-6">
+            <MedoHero3D />
+          </div>
+        </div>
+      </section>
 
-          <p className="mx-auto mt-4 max-w-2xl text-[15px] leading-relaxed text-[#475569]">
-            {tx(
-              "Engineered as a verifiable AI system rather than an opaque wrapper—uniting canonical skill extraction, hybrid RRF retrieval, calibrated ML/LTR ranking, and specialist LangGraph orchestration.",
-              "एक सत्यापित AI करियर सिस्टम जो सटीक कौशल पहचान, हाइब्रिड जॉब सर्च, कैलिब्रेटेड ML रैंकिंग और विशेषज्ञ AI ऑर्केस्ट्रेटर को एक साथ लाता है।"
-            )}
-          </p>
-
-          {/* Centered Studio Command Composer */}
-          <form
-            onSubmit={handleLaunch}
-            className="atoms-card mx-auto mt-8 max-w-3xl p-4 text-left shadow-lg shadow-black/[0.04]"
-          >
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div className="atoms-segmented flex-wrap">
-                {(Object.keys(MODE_META) as ComposerMode[]).map((key) => (
-                  <button
-                    key={key}
-                    type="button"
-                    data-active={activeMode === key}
-                    onClick={() => setActiveMode(key)}
-                    className="atoms-segmented-btn"
-                  >
-                    {tx(MODE_META[key].labelEn, MODE_META[key].labelHi)}
-                  </button>
-                ))}
+      {/* 30 Interactive Roadmaps 3D Showcase Strip */}
+      <section className="border-b border-[#e5e7eb] bg-white px-6 py-12">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+            <div>
+              <div className="inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-[#3b5bff]">
+                <Compass className="h-3.5 w-3.5" />
+                {tx("30 Role & Skill Blueprints", "30 करियर व तकनीकी रोडमैप्स")}
               </div>
-              <span className="font-mono text-[11px] text-[#64748b]">{currentMode.pipeline}</span>
+              <h2 className="mt-1 text-2xl font-semibold tracking-tight text-[#0f172a]">
+                {tx("Visual Flowchart Roadmaps With Guided Learning", "विज़ुअल फ्लोचार्ट और चरण-दर-चरण सीखने का तरीका")}
+              </h2>
             </div>
+            <Link
+              href="/roadmaps"
+              className="inline-flex items-center gap-1.5 rounded-xl border-2 border-[#0f172a] bg-[#fde047] px-4 py-2 text-[12.5px] font-bold text-[#0f172a] shadow-[0_2px_0_#0f172a] transition hover:-translate-y-0.5 hover:bg-[#fef08a]"
+            >
+              {tx("Explore All 30 Roadmaps", "सभी 30 रोडमैप्स देखें")} <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
 
-            <textarea
-              rows={3}
-              value={promptText}
-              onChange={(e) => setPromptText(e.target.value)}
-              placeholder={tx(currentMode.placeholderEn, currentMode.placeholderHi)}
-              className="studio-input resize-none px-4 py-3 text-[14px]"
-            />
-
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap gap-1.5">
-                {quickBriefs.map((brief, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setPromptText(brief)}
-                    className="rounded-md border border-[#e2e8f0] bg-[#f8fafc] px-2.5 py-1 text-[11px] text-[#475569] transition hover:border-[#cbd5e1] hover:text-[#0f172a]"
-                  >
-                    {tx(`Example ${idx + 1}`, `उदाहरण ${idx + 1}`)}
-                  </button>
-                ))}
-              </div>
-              <button
-                type="submit"
-                className="inline-flex items-center gap-2 rounded-xl bg-[#3b5bff] px-4 py-2 text-[13px] font-medium text-white transition hover:bg-[#2948eb]"
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              {
+                id: "ai-engineer",
+                title: tx("AI Engineer", "AI इंजीनियर"),
+                tag: tx("AI & Agents", "AI व एजेंट्स"),
+                chips: ["LLMs", "Ollama", "RAG", "LangGraph"],
+              },
+              {
+                id: "backend",
+                title: tx("Backend Developer", "बैकएंड डेवलपर"),
+                tag: tx("Systems & APIs", "सिस्टम व API"),
+                chips: ["PostgreSQL", "REST/gRPC", "Redis", "JWT"],
+              },
+              {
+                id: "full-stack",
+                title: tx("Full Stack Developer", "फुल स्टैक डेवलपर"),
+                tag: tx("Web + Cloud", "वेब + क्लाउड"),
+                chips: ["React", "Tailwind", "Node.js", "AWS"],
+              },
+              {
+                id: "devops",
+                title: tx("DevOps & Kubernetes", "DevOps व K8s"),
+                tag: tx("Cloud Infra", "क्लाउड इंफ्रा"),
+                chips: ["Docker", "Kubernetes", "Terraform", "CI/CD"],
+              },
+              {
+                id: "ai-data-scientist",
+                title: tx("AI & Data Scientist", "AI व डेटा साइंटिस्ट"),
+                tag: tx("Math & ML", "गणित व ML"),
+                chips: ["Statistics", "CUPED", "EDA", "PyTorch"],
+              },
+              {
+                id: "sql",
+                title: tx("SQL & PostgreSQL DBA", "SQL व PostgreSQL"),
+                tag: tx("Databases", "डेटाबेस"),
+                chips: ["Joins", "Window Fn", "MVCC", "EXPLAIN"],
+              },
+              {
+                id: "product-design",
+                title: tx("Product & UX Design", "प्रोडक्ट व UX डिज़ाइन"),
+                tag: tx("Design & HEART", "डिज़ाइन व UX"),
+                chips: ["Wireframes", "Figma", "Usability", "HEART"],
+              },
+              {
+                id: "android",
+                title: tx("Mobile (Android / iOS / Flutter)", "मोबाइल (Android/iOS/Flutter)"),
+                tag: tx("Native & Cross", "नेटिव व क्रॉस"),
+                chips: ["Kotlin", "SwiftUI", "Flutter", "React Native"],
+              },
+            ].map((card) => (
+              <Link
+                key={card.id}
+                href={`/roadmaps?track=${card.id}`}
+                className="group rounded-2xl border border-[#e5e7eb] bg-[#f8fafc] p-4 transition-all duration-200 hover:-translate-y-1 hover:border-[#0f172a] hover:bg-white hover:shadow-[0_14px_30px_-12px_rgba(15,23,42,0.18)]"
               >
-                <Sparkles className="h-3.5 w-3.5" />
-                {tx("Launch Workspace", "वर्कस्पेस खोलें")}
-              </button>
-            </div>
-          </form>
-
-          {/* Compact System Pillars */}
-          <div className="mx-auto mt-8 grid max-w-4xl grid-cols-2 gap-3 sm:grid-cols-4">
-            {SYSTEM_PILLARS.map((item) => (
-              <div key={item.labelEn} className="atoms-card px-4 py-3 text-left">
-                <div className="font-mono text-xl font-semibold text-[#0f172a]">{item.value}</div>
-                <div className="mt-0.5 text-[12px] font-semibold text-[#0f172a]">{tx(item.labelEn, item.labelHi)}</div>
-                <div className="font-mono text-[10px] text-[#64748b]">{item.detail}</div>
-              </div>
+                <div className="flex items-center justify-between">
+                  <span className="rounded-md bg-[#fde047] px-2 py-0.5 font-mono text-[10px] font-bold text-[#0f172a]">
+                    {card.tag}
+                  </span>
+                  <ArrowRight className="h-3.5 w-3.5 text-[#64748b] transition group-hover:translate-x-0.5 group-hover:text-[#3b5bff]" />
+                </div>
+                <h3 className="mt-2.5 text-[14px] font-bold text-[#0f172a] group-hover:text-[#3b5bff]">
+                  {card.title}
+                </h3>
+                <div className="mt-2.5 flex flex-wrap gap-1">
+                  {card.chips.map((ch) => (
+                    <span
+                      key={ch}
+                      className="rounded border border-[#fed7aa] bg-[#ffedd5]/80 px-1.5 py-0.5 text-[10px] font-semibold text-[#334155]"
+                    >
+                      {ch}
+                    </span>
+                  ))}
+                </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -426,6 +535,9 @@ export default function LandingPage() {
 
       {/* Interactive Elip-Style Guided Conversation Showcase */}
       <MedoShowcase />
+
+      {/* Deep 5-Layer Pipeline Inspection Walkthrough */}
+      <MedoDeepDive />
 
       {/* Mermaid-Style System Architecture Flowchart */}
       <section id="architecture" className="mx-auto max-w-6xl px-6 py-16">
@@ -521,36 +633,7 @@ export default function LandingPage() {
           </Link>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {WORKSPACE_MODULES.map((mod) => {
-            const Icon = mod.icon;
-            return (
-              <Link key={mod.href} href={mod.href} className="atoms-card atoms-card-hover group flex flex-col justify-between p-5">
-                <div>
-                  <div className="mb-3 flex items-center justify-between">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#3b5bff]/10 text-[#3b5bff]">
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <span className="rounded-md border border-[#e5e7eb] bg-[#f8fafc] px-2 py-0.5 font-mono text-[10px] font-medium text-[#475569]">
-                      {mod.tag}
-                    </span>
-                  </div>
-                  <h3 className="text-[15px] font-semibold text-[#0f172a] group-hover:text-[#3b5bff]">
-                    {tx(mod.titleEn, mod.titleHi)}
-                  </h3>
-                  <p className="mt-1.5 text-[13px] leading-relaxed text-[#475569]">
-                    {tx(mod.descEn, mod.descHi)}
-                  </p>
-                </div>
-
-                <div className="mt-4 flex items-center justify-between border-t border-[#f1f5f9] pt-3 font-mono text-[11px] font-medium text-[#3b5bff]">
-                  <span>{mod.href}</span>
-                  <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+        <MedoStudioBento />
 
         {/* Why Medo Comparison Matrix */}
         <div className="mt-14 atoms-card overflow-hidden">
@@ -589,41 +672,86 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Interactive FAQ Accordion */}
-        <div className="mt-12 grid gap-6 lg:grid-cols-12">
-          <div className="lg:col-span-4">
-            <div className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#3b5bff]">
-              {tx("Frequently Asked", "अक्सर पूछे जाने वाले सवाल")}
-            </div>
-            <h3 className="mt-1 text-2xl font-semibold tracking-tight text-[#0f172a]">
-              {tx("Architecture, Privacy & Control", "आर्किटेक्चर, गोपनीयता और नियंत्रण")}
-            </h3>
-            <p className="mt-2 text-[13px] leading-relaxed text-[#64748b]">
+      </section>
+
+      {/* Clean Minimal Editorial FAQ Section */}
+      <section id="faq" className="border-t border-[#e5e7eb] bg-white px-6 py-20">
+        <div className="mx-auto max-w-4xl">
+          <div className="text-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e2e8f0] bg-[#f8fafc] px-3 py-1 font-mono text-[10.5px] font-semibold uppercase tracking-wider text-[#3b5bff]">
+              {tx("FAQ · Technical & Security", "अक्सर पूछे जाने वाले सवाल")}
+            </span>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-[#0f172a]">
+              {tx("Questions engineers ask before adopting Medo", "आर्किटेक्चर, ML और गोपनीयता से जुड़े प्रमुख प्रश्न")}
+            </h2>
+            <p className="mx-auto mt-2 max-w-2xl text-[14px] text-[#64748b]">
               {tx(
-                "Everything from hybrid vector retrieval to consent-gated explanations is inspectable and verifiable.",
-                "हाइब्रिड वेक्टर सर्च से लेकर सहमति-आधारित व्याख्याओं तक सब कुछ पारदर्शी और सत्यापित है।"
+                "Everything from hybrid RRF search and ML calibration to local Ollama Hindi AI and HITL approvals.",
+                "हाइब्रिड खोज, 12-फ़ीचर ML स्कोरिंग, हिंदी Ollama AI और मानव अनुमोदन प्रणाली के बारे में स्पष्ट उत्तर।"
               )}
             </p>
+
+            {/* Centered Filter Pills */}
+            <div className="mt-6 inline-flex flex-wrap justify-center gap-1.5 rounded-2xl border border-[#e5e7eb] bg-[#f8fafc] p-1.5">
+              {(
+                [
+                  { id: "all", en: `All (${FAQS.length})`, hi: `सभी (${FAQS.length})` },
+                  { id: "architecture", en: "Architecture", hi: "आर्किटेक्चर" },
+                  { id: "ml", en: "ML & Search", hi: "ML व सर्च" },
+                  { id: "ai", en: "Ollama & AI", hi: "Ollama व AI" },
+                  { id: "privacy", en: "Privacy & HITL", hi: "गोपनीयता" },
+                ] as const
+              ).map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => {
+                    setFaqCategory(cat.id);
+                    setOpenFaq(0);
+                  }}
+                  className={`rounded-xl px-3.5 py-1.5 text-[12px] font-medium transition ${
+                    faqCategory === cat.id
+                      ? "bg-[#0f172a] text-white shadow-xs"
+                      : "text-[#475569] hover:text-[#0f172a]"
+                  }`}
+                >
+                  {tx(cat.en, cat.hi)}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="space-y-2.5 lg:col-span-8">
-            {FAQS.map((item, idx) => {
+
+          {/* Single Clean Unified Divide-Y Accordion Surface */}
+          <div className="mt-8 overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_10px_30px_-15px_rgba(15,23,42,0.08)] divide-y divide-[#f1f5f9]">
+            {visibleFaqs.map((item, idx) => {
               const isOpen = openFaq === idx;
               return (
-                <div key={item.qEn} className="atoms-card overflow-hidden">
+                <div key={item.qEn} className="transition-colors hover:bg-[#fafbfc]">
                   <button
                     type="button"
                     onClick={() => setOpenFaq(isOpen ? null : idx)}
-                    className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-[14px] font-semibold text-[#0f172a] transition hover:bg-[#f8fafc]"
+                    className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left"
                   >
-                    <span>{tx(item.qEn, item.qHi)}</span>
-                    <ChevronDown
-                      className={`h-4 w-4 shrink-0 text-[#64748b] transition-transform ${
-                        isOpen ? "rotate-180 text-[#3b5bff]" : ""
-                      }`}
-                    />
+                    <span className="text-[15px] font-semibold tracking-tight text-[#0f172a]">
+                      {tx(item.qEn, item.qHi)}
+                    </span>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <span className="hidden rounded-md bg-[#f1f5f9] px-2 py-0.5 font-mono text-[10px] font-medium uppercase text-[#64748b] sm:inline-block">
+                        {item.cat}
+                      </span>
+                      <span
+                        className={`flex h-7 w-7 items-center justify-center rounded-full border transition ${
+                          isOpen
+                            ? "border-[#0f172a] bg-[#0f172a] text-white"
+                            : "border-[#e2e8f0] bg-white text-[#64748b]"
+                        }`}
+                      >
+                        {isOpen ? <Minus className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                      </span>
+                    </div>
                   </button>
                   {isOpen && (
-                    <div className="border-t border-[#f1f5f9] bg-[#f8fafc] px-5 py-3.5 text-[13px] leading-relaxed text-[#475569]">
+                    <div className="px-6 pb-5 pt-0 text-[13.5px] leading-[1.7] text-[#475569]">
                       {tx(item.aEn, item.aHi)}
                     </div>
                   )}
@@ -632,84 +760,167 @@ export default function LandingPage() {
             })}
           </div>
         </div>
+      </section>
 
-        {/* Bottom Governance & Demo Banner */}
-        <div className="mt-8 flex flex-col justify-between gap-5 rounded-2xl border border-[#e5e7eb] bg-white p-6 md:flex-row md:items-center">
-          <div className="flex items-start gap-3.5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0f172a] text-white">
-              <Activity className="h-4 w-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-[15px] font-semibold text-[#0f172a]">
-                  {tx("Human-Controlled & Zero Fabricated Metrics", "पूर्णतः मानव-नियंत्रित और वास्तविक डेटा")}
-                </h3>
-                <span className="rounded border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-medium text-emerald-700">
-                  HITL Ready
+      {/* Executive Obsidian Closing CTA Stage */}
+      <section className="bg-[#f6f7f9] px-6 py-16">
+        <div className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl border border-[#1e293b] bg-gradient-to-br from-[#090d18] via-[#131d3b] to-[#1e3a8a] p-8 text-white shadow-2xl sm:p-12">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-[#3b5bff]/25 blur-3xl"
+          />
+          <div className="relative z-10 flex flex-col justify-between gap-8 lg:flex-row lg:items-center">
+            <div className="max-w-2xl">
+              <div className="flex items-center gap-3">
+                <MedoMark size={38} />
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-3 py-1 font-mono text-[10.5px] font-semibold text-emerald-300">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  {tx("ZERO FABRICATED METRICS · HITL GUARDED", "वास्तविक डेटा · मानव अनुमोदन सुरक्षा")}
                 </span>
               </div>
-              <p className="mt-1 max-w-2xl text-[13px] text-[#475569]">
+              <h2 className="mt-5 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+                {tx("Ready to navigate your next role with real proof?", "सटीक प्रमाण और AI मार्गदर्शन के साथ आगे बढ़ें")}
+              </h2>
+              <p className="mt-3 text-[14.5px] leading-relaxed text-slate-300">
                 {tx(
-                  "Every dashboard metric reflects real PostgreSQL/SQLite rows. External job submissions require explicit approval_requests sign-off.",
-                  "डैशबोर्ड का हर आंकड़ा वास्तविक डेटाबेस से आता है। बाहरी आवेदन सबमिट करने के लिए आपकी स्पष्ट मंज़ूरी आवश्यक होती है।"
+                  "Every fit score reflects real database rows, real job descriptions, and explicit Human-in-the-Loop approvals before any external submission.",
+                  "हर फिट स्कोर वास्तविक डेटाबेस और आपकी स्पष्ट मंज़ूरी पर आधारित है। अभी लाइव वर्कस्पेस या 30 करियर रोडमैप्स शुरू करें।"
                 )}
               </p>
             </div>
-          </div>
 
-          <div className="flex shrink-0 flex-wrap items-center gap-2.5">
-            <button
-              type="button"
-              onClick={handleDemoLogin}
-              disabled={demoLoading}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#3b5bff] px-4 py-2 text-[13px] font-medium text-white transition hover:bg-[#2948eb] disabled:opacity-60"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              {demoLoading ? tx("Loading...", "खुल रहा है...") : tx("Open Workspace", "वर्कस्पेस खोलें")}
-            </button>
-            <Link
-              href="/auth"
-              className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] px-4 py-2 text-[13px] font-medium text-[#0f172a] transition hover:border-[#cbd5e1]"
-            >
-              {tx("Sign in", "साइन इन")}
-            </Link>
+            <div className="flex shrink-0 flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={handleDemoLogin}
+                disabled={demoLoading}
+                className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-[13.5px] font-semibold text-[#0f172a] shadow-sm transition hover:bg-slate-100 disabled:opacity-60"
+              >
+                <Sparkles className="h-4 w-4 text-[#3b5bff]" />
+                {demoLoading ? tx("Opening...", "खुल रहा है...") : tx("Open Live Workspace", "लाइव वर्कस्पेस खोलें")}
+              </button>
+              <Link
+                href="/roadmaps"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-white/25 bg-white/10 px-5 py-3 text-[13.5px] font-medium text-white backdrop-blur-xs transition hover:bg-white/20"
+              >
+                {tx("Browse 30 Roadmaps", "30 रोडमैप्स देखें")} <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Studio Footer */}
-      <footer className="border-t border-[#e5e7eb] bg-white px-6 py-8">
-        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0f172a] text-white">
-              <Database className="h-3.5 w-3.5" />
-            </div>
-            <div>
-              <div className="text-[13px] font-semibold text-[#0f172a]">
-                {tx("Medo AI Career Intelligence", "मेडो AI करियर इंटेलिजेंस")}
-              </div>
-              <div className="font-mono text-[11px] text-[#64748b]">
+      {/* Multi-Column Studio Footer */}
+      <footer className="border-t border-[#e5e7eb] bg-white px-6 pb-10 pt-14">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid gap-10 pb-10 sm:grid-cols-2 lg:grid-cols-12">
+            <div className="lg:col-span-5">
+              <Link href="/" className="inline-flex items-center gap-2.5">
+                <MedoMark size={32} />
+                <span className="text-[16.5px] font-bold tracking-tight text-[#0f172a]">Medo</span>
+                <span className="rounded-md bg-[#3b5bff]/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-[#3b5bff]">
+                  {tx("CAREER STUDIO", "करियर स्टूडियो")}
+                </span>
+              </Link>
+              <p className="mt-3 max-w-sm text-[13px] leading-relaxed text-[#64748b]">
+                {tx(
+                  "AI-native career intelligence platform combining live multi-source search, calibrated ML/LTR ranking, bilingual Ollama agents, and interactive roadmaps.",
+                  "लाइव जॉब खोज, कैलिब्रेटेड ML रैंकिंग, द्विभाषी Ollama AI और 30 इंटरैक्टिव रोडमैप्स का संपूर्ण करियर प्लेटफ़ॉर्म।"
+                )}
+              </p>
+              <div className="mt-4 font-mono text-[11px] text-[#94a3b8]">
                 FastAPI · PostgreSQL 16 + pgvector · LangGraph · Next.js 15
               </div>
             </div>
+
+            <div className="lg:col-span-2">
+              <div className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#0f172a]">
+                {tx("Opportunities", "अवसर")}
+              </div>
+              <ul className="mt-3 space-y-2 text-[13px] text-[#475569]">
+                <li>
+                  <Link href="/dashboard" className="hover:text-[#0f172a]">
+                    {tx("Dashboard", "डैशबोर्ड")}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/discover" className="hover:text-[#0f172a]">
+                    {tx("Job Discovery", "नौकरी खोज")}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/recommendations" className="hover:text-[#0f172a]">
+                    {tx("ML Matches", "ML मिलान")}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/tracker" className="hover:text-[#0f172a]">
+                    {tx("Pipeline Tracker", "पाइपलाइन ट्रैकर")}
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            <div className="lg:col-span-3">
+              <div className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#0f172a]">
+                {tx("Intelligence & Roadmaps", "AI और रोडमैप्स")}
+              </div>
+              <ul className="mt-3 space-y-2 text-[13px] text-[#475569]">
+                <li>
+                  <Link href="/assistant" className="hover:text-[#0f172a]">
+                    {tx("AI Orchestrator", "AI ऑर्केस्ट्रेटर")}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/roadmaps" className="hover:text-[#0f172a]">
+                    {tx("30 Skill Roadmaps", "30 करियर रोडमैप्स")}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/resume" className="hover:text-[#0f172a]">
+                    {tx("Resume Studio", "रिज्यूमे स्टूडियो")}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/skills" className="hover:text-[#0f172a]">
+                    {tx("Skill-Gap Radar", "कौशल अंतर")}
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            <div className="lg:col-span-2">
+              <div className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#0f172a]">
+                {tx("Governance", "सुरक्षा")}
+              </div>
+              <ul className="mt-3 space-y-2 text-[13px] text-[#475569]">
+                <li>
+                  <Link href="/privacy" className="hover:text-[#0f172a]">
+                    {tx("Privacy & HITL", "गोपनीयता और HITL")}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/profile" className="hover:text-[#0f172a]">
+                    {tx("Preferences", "प्राथमिकताएँ")}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/auth" className="hover:text-[#0f172a]">
+                    {tx("Sign in", "साइन इन")}
+                  </Link>
+                </li>
+                <li>
+                  <a href="#faq" className="hover:text-[#0f172a]">
+                    {tx("Architecture FAQ", "FAQ")}
+                  </a>
+                </li>
+              </ul>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-5 text-[12.5px] font-medium text-[#475569]">
-            <Link href="/dashboard" className="hover:text-[#0f172a]">
-              {tx("Dashboard", "डैशबोर्ड")}
-            </Link>
-            <Link href="/discover" className="hover:text-[#0f172a]">
-              {tx("Discovery", "नौकरियाँ खोजें")}
-            </Link>
-            <Link href="/recommendations" className="hover:text-[#0f172a]">
-              {tx("ML Matching", "ML मिलान")}
-            </Link>
-            <Link href="/assistant" className="hover:text-[#0f172a]">
-              {tx("AI Assistant", "AI सहायक")}
-            </Link>
-            <Link href="/privacy" className="hover:text-[#0f172a]">
-              {tx("Privacy & Approvals", "गोपनीयता और अनुमोदन")}
-            </Link>
+          <div className="flex flex-col items-start justify-between gap-3 border-t border-[#f1f5f9] pt-6 text-[12px] text-[#94a3b8] sm:flex-row sm:items-center">
+            <span>© {new Date().getFullYear()} Medo AI Career Intelligence Studio</span>
+            <span>{tx("Local-First · English & हिंदी · Verifiable ML", "लोकल-फ़र्स्ट · अंग्रेजी और हिंदी · सत्यापित ML")}</span>
           </div>
         </div>
       </footer>

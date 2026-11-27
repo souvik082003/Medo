@@ -61,6 +61,13 @@ const SOURCE_DOTS: Record<string, string> = {
   remotive: "bg-emerald-500",
   himalayas: "bg-sky-500",
   jobicy: "bg-amber-500",
+  themuse: "bg-violet-500",
+  workingnomads: "bg-teal-500",
+  greenhouse: "bg-lime-600",
+  adzuna: "bg-cyan-600",
+  jsearch_rapidapi: "bg-blue-600",
+  serpapi_jobs: "bg-fuchsia-600",
+  apify_linkedin: "bg-sky-700",
   manual: "bg-slate-600",
 };
 

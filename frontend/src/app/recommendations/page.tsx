@@ -145,12 +145,12 @@ export default function RecommendationsPage() {
       {/* Filter Toolbar */}
       <div className="atoms-card mb-4 flex flex-wrap items-center justify-between gap-3 p-3.5">
         <div className="relative min-w-[220px] flex-1">
-          <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-[#64748b]" />
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#64748b]" />
           <input
             value={textFilter}
             onChange={(e) => setTextFilter(e.target.value)}
             placeholder={tx("Filter by role, company, or matched skill...", "रोल, कंपनी या कौशल से फ़िल्टर करें...")}
-            className="studio-input pl-9"
+            className="studio-input pl-10"
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">

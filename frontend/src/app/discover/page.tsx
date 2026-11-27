@@ -40,10 +40,31 @@ const SOURCE_LABELS: Record<string, string> = {
   remoteok: "RemoteOK",
   arbeitnow: "Arbeitnow",
   hackernews: "HackerNews",
-  apify_linkedin: "Apify LinkedIn",
+  themuse: "The Muse",
+  workingnomads: "Working Nomads",
+  greenhouse: "Greenhouse ATS",
   adzuna: "Adzuna",
+  jsearch_rapidapi: "JSearch (RapidAPI)",
+  serpapi_jobs: "SerpAPI Google Jobs",
+  apify_linkedin: "Apify LinkedIn",
   manual: "Custom",
 };
+
+type LiveSourceKey =
+  | "all_free"
+  | "himalayas"
+  | "jobicy"
+  | "remotive"
+  | "remoteok"
+  | "arbeitnow"
+  | "hackernews"
+  | "themuse"
+  | "workingnomads"
+  | "greenhouse"
+  | "adzuna"
+  | "jsearch_rapidapi"
+  | "serpapi_jobs"
+  | "apify_linkedin";
 
 interface JobSourceHealth {
   name: string;
@@ -54,6 +75,21 @@ interface JobSourceHealth {
   last_run_at?: string | null;
   last_success_at?: string | null;
   last_error?: string | null;
+}
+
+interface JobSourceCatalogItem {
+  id: string;
+  name: string;
+  category: "free_public" | "paid_api_key";
+  is_free: boolean;
+  requires_key: boolean;
+  is_configured: boolean;
+  env_vars: string[];
+  pricing_usd: string;
+  pricing_inr: string;
+  free_tier: string;
+  coverage: string;
+  signup_url: string;
 }
 
 function DiscoverInner() {
@@ -71,10 +107,9 @@ function DiscoverInner() {
   const [minSalaryUsd, setMinSalaryUsd] = useState(0);
   const [sourceFilter, setSourceFilter] = useState("");
   const [sourceHealth, setSourceHealth] = useState<JobSourceHealth[]>([]);
+  const [sourceCatalog, setSourceCatalog] = useState<JobSourceCatalogItem[]>([]);
   const [showHealthModal, setShowHealthModal] = useState(false);
-  const [liveSource, setLiveSource] = useState<
-    "all_free" | "himalayas" | "jobicy" | "remotive" | "remoteok" | "arbeitnow" | "hackernews" | "apify_linkedin"
-  >("all_free");
+  const [liveSource, setLiveSource] = useState<LiveSourceKey>("all_free");
   const [results, setResults] = useState<JobSearchResult[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
@@ -139,10 +174,15 @@ function DiscoverInner() {
   const openHealthMonitor = async () => {
     setShowHealthModal(true);
     try {
-      const res = await apiFetch<JobSourceHealth[]>("/api/v1/jobs/sources/health");
-      setSourceHealth(res);
+      const [healthRes, catalogRes] = await Promise.all([
+        apiFetch<JobSourceHealth[]>("/api/v1/jobs/sources/health").catch(() => []),
+        apiFetch<JobSourceCatalogItem[]>("/api/v1/jobs/sources/catalog").catch(() => []),
+      ]);
+      setSourceHealth(healthRes);
+      setSourceCatalog(catalogRes);
     } catch {
       setSourceHealth([]);
+      setSourceCatalog([]);
     }
   };
 
@@ -269,7 +309,7 @@ function DiscoverInner() {
             onClick={openHealthMonitor}
             className="inline-flex items-center gap-1.5 rounded-xl border border-[#e2e8f0] bg-white px-3 py-1.5 text-[12px] font-medium text-[#0f172a] transition hover:border-[#cbd5e1]"
           >
-            {tx("Source Health", "स्रोत स्थिति")}
+            {tx("API Sources & Pricing", "API स्रोत और कीमतें")}
           </button>
           <button
             type="button"
@@ -281,29 +321,27 @@ function DiscoverInner() {
           <div className="flex items-center overflow-hidden rounded-xl border border-[#e2e8f0] bg-white shadow-2xs">
             <select
               value={liveSource}
-              onChange={(e) =>
-                setLiveSource(
-                  e.target.value as
-                    | "all_free"
-                    | "himalayas"
-                    | "jobicy"
-                    | "remotive"
-                    | "remoteok"
-                    | "arbeitnow"
-                    | "hackernews"
-                    | "apify_linkedin"
-                )
-              }
+              onChange={(e) => setLiveSource(e.target.value as LiveSourceKey)}
               className="border-r border-[#e2e8f0] bg-[#f8fafc] px-2.5 py-1.5 text-[12px] font-medium text-[#0f172a] outline-none"
             >
-              <option value="all_free">{tx("All Free (6x)", "सभी मुफ्त (6x)")}</option>
-              <option value="himalayas">Himalayas</option>
-              <option value="jobicy">Jobicy</option>
-              <option value="remotive">Remotive</option>
-              <option value="remoteok">RemoteOK</option>
-              <option value="arbeitnow">Arbeitnow</option>
-              <option value="hackernews">HackerNews</option>
-              <option value="apify_linkedin">Apify LinkedIn</option>
+              <option value="all_free">{tx("All Free (9x)", "सभी मुफ़्त (9x)")}</option>
+              <optgroup label={tx("Free Public APIs (₹0)", "मुफ़्त पब्लिक API (₹0)")}>
+                <option value="himalayas">Himalayas</option>
+                <option value="jobicy">Jobicy</option>
+                <option value="remotive">Remotive</option>
+                <option value="remoteok">RemoteOK</option>
+                <option value="arbeitnow">Arbeitnow</option>
+                <option value="hackernews">HackerNews</option>
+                <option value="themuse">The Muse</option>
+                <option value="workingnomads">Working Nomads</option>
+                <option value="greenhouse">Greenhouse ATS</option>
+              </optgroup>
+              <optgroup label={tx("Paid / Keyed APIs", "पेड / API-कुंजी स्रोत")}>
+                <option value="adzuna">Adzuna (IN/Global)</option>
+                <option value="jsearch_rapidapi">JSearch (RapidAPI)</option>
+                <option value="serpapi_jobs">SerpAPI Google Jobs</option>
+                <option value="apify_linkedin">Apify LinkedIn</option>
+              </optgroup>
             </select>
             <button
               onClick={handleIngestLive}
@@ -317,17 +355,20 @@ function DiscoverInner() {
         </div>
       }
     >
-      {/* Connector Health Modal */}
+      {/* API Sources, Pricing & Health Modal */}
       {showHealthModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs">
-          <div className="atoms-card w-full max-w-lg p-6 shadow-2xl">
+          <div className="atoms-card max-h-[86vh] w-full max-w-3xl overflow-y-auto p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-[15.5px] font-semibold text-[#0f172a]">
-                  {tx("Job Connector Health", "जॉब कनेक्टर स्वास्थ्य")}
+                <h2 className="text-[16px] font-semibold text-[#0f172a]">
+                  {tx("Job API Sources, Pricing & Connector Health", "जॉब API स्रोत, कीमतें और कनेक्टर स्थिति")}
                 </h2>
                 <p className="text-[12px] text-[#64748b]">
-                  {tx("Live telemetry across ingestion adapters", "लाइव डेटा स्रोतों की ताज़ा स्थिति")}
+                  {tx(
+                    "9 completely free live APIs (₹0 forever) + 4 optional paid aggregators with transparent INR/USD tiers",
+                    "9 पूरी तरह मुफ़्त लाइव API (₹0 हमेशा) + 4 वैकल्पिक पेड एग्रीगेटर पारदर्शी INR/USD कीमतों के साथ"
+                  )}
                 </p>
               </div>
               <button
@@ -338,11 +379,97 @@ function DiscoverInner() {
                 <X className="h-4 w-4" />
               </button>
             </div>
+
+            {sourceCatalog.length > 0 && (
+              <div className="mb-5 space-y-4">
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">
+                      {tx("Free Public Job APIs · No API Key Needed", "मुफ़्त पब्लिक जॉब API · कोई API कुंजी नहीं चाहिए")}
+                    </span>
+                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-mono text-[10.5px] font-semibold text-emerald-700">
+                      {tx("9x Active · ₹0 / $0", "9x सक्रिय · ₹0 / $0")}
+                    </span>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {sourceCatalog
+                      .filter((c) => c.is_free)
+                      .map((c) => (
+                        <div key={c.id} className="rounded-xl border border-[#e5e7eb] bg-[#f8fafc] p-3 text-[12px]">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-[#0f172a]">{c.name}</span>
+                            <span className="rounded-md bg-emerald-50 px-2 py-0.5 font-mono text-[10px] font-semibold text-emerald-700">
+                              ₹0 FREE
+                            </span>
+                          </div>
+                          <p className="mt-1 text-[11px] text-[#475569]">{c.coverage}</p>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-[#3b5bff]">
+                      {tx("Paid / Key-Based APIs · Exact Costs & Free Tiers", "पेड / API-कुंजी स्रोत · सटीक कीमत और मुफ़्त टियर")}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {sourceCatalog
+                      .filter((c) => !c.is_free)
+                      .map((c) => (
+                        <div key={c.id} className="rounded-xl border border-[#e2e8f0] bg-white p-3.5 text-[12px]">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-[#0f172a]">{c.name}</span>
+                              <span
+                                className={`rounded-md px-2 py-0.5 font-mono text-[10px] font-semibold ${
+                                  c.is_configured ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-[#64748b]"
+                                }`}
+                              >
+                                {c.is_configured ? tx("CONFIGURED", "कॉन्फ़िगर किया गया") : tx("KEY NOT SET", "कुंजी सेट नहीं")}
+                              </span>
+                            </div>
+                            <a
+                              href={c.signup_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#3b5bff] hover:underline"
+                            >
+                              {tx("Pricing", "कीमत देखें")} <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </div>
+                          <p className="mt-1 text-[11.5px] text-[#475569]">{c.coverage}</p>
+                          <div className="mt-2 grid gap-1.5 rounded-lg bg-[#f8fafc] p-2.5 text-[11px] sm:grid-cols-2">
+                            <div>
+                              <span className="font-semibold text-[#0f172a]">INR: </span>
+                              <span className="text-[#334155]">{c.pricing_inr}</span>
+                            </div>
+                            <div>
+                              <span className="font-semibold text-[#0f172a]">USD: </span>
+                              <span className="text-[#334155]">{c.pricing_usd}</span>
+                            </div>
+                          </div>
+                          {c.env_vars.length > 0 && (
+                            <div className="mt-1.5 font-mono text-[10.5px] text-[#64748b]">
+                              .env: {c.env_vars.join(", ")}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#64748b]">
+              {tx("Live Ingestion Run Telemetry", "लाइव डेटा सिंक टेलीमेट्री")}
+            </div>
             {sourceHealth.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-[#cbd5e1] p-6 text-center text-[12.5px] text-[#64748b]">
+              <div className="rounded-xl border border-dashed border-[#cbd5e1] p-5 text-center text-[12.5px] text-[#64748b]">
                 {tx(
-                  "No connector runs recorded yet. Click Fetch Live above to pull real openings across all 6 sources.",
-                  "अभी कोई कनेक्टर रिकॉर्ड नहीं है। सभी 6 स्रोतों से लाइव नौकरियाँ लाने के लिए ऊपर 'लाइव लाएँ' दबाएँ।"
+                  "No connector runs recorded yet. Click Fetch Live above to pull real openings across all 9 free sources.",
+                  "अभी कोई कनेक्टर रिकॉर्ड नहीं है। सभी 9 मुफ़्त स्रोतों से लाइव नौकरियाँ लाने के लिए ऊपर 'लाइव लाएँ' दबाएँ।"
                 )}
               </div>
             ) : (
@@ -464,19 +591,19 @@ function DiscoverInner() {
       <form onSubmit={runSearch} className="atoms-card mb-4 space-y-3.5 p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-[#64748b]" />
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748b]" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={tx("Search titles, companies, skills, or keywords in job descriptions...", "शीर्षक, कंपनी, कौशल या नौकरी विवरण के कीवर्ड से खोजें...")}
-              className="studio-input pl-10 pr-8"
+              className="studio-input pl-10 pr-9"
             />
             {query && (
               <button
                 type="button"
                 onClick={() => setQuery("")}
                 title={tx("Clear query", "खोज साफ़ करें")}
-                className="absolute right-2.5 top-2 rounded p-0.5 text-[#94a3b8] hover:bg-[#f1f5f9] hover:text-[#0f172a]"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-[#94a3b8] hover:bg-[#f1f5f9] hover:text-[#0f172a]"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -653,12 +780,23 @@ function DiscoverInner() {
               className="studio-input py-1.5 text-[12px]"
             >
               <option value="">{tx("All Live Sources", "सभी लाइव स्रोत")}</option>
-              <option value="himalayas">Himalayas</option>
-              <option value="jobicy">Jobicy</option>
-              <option value="remotive">Remotive</option>
-              <option value="remoteok">RemoteOK</option>
-              <option value="arbeitnow">Arbeitnow</option>
-              <option value="hackernews">HackerNews</option>
+              <optgroup label={tx("Free Public APIs", "मुफ़्त पब्लिक API")}>
+                <option value="himalayas">Himalayas</option>
+                <option value="jobicy">Jobicy</option>
+                <option value="remotive">Remotive</option>
+                <option value="remoteok">RemoteOK</option>
+                <option value="arbeitnow">Arbeitnow</option>
+                <option value="hackernews">HackerNews</option>
+                <option value="themuse">The Muse</option>
+                <option value="workingnomads">Working Nomads</option>
+                <option value="greenhouse">Greenhouse ATS</option>
+              </optgroup>
+              <optgroup label={tx("Paid / Keyed APIs", "पेड / API-कुंजी स्रोत")}>
+                <option value="adzuna">Adzuna</option>
+                <option value="jsearch_rapidapi">JSearch (RapidAPI)</option>
+                <option value="serpapi_jobs">SerpAPI Google Jobs</option>
+                <option value="apify_linkedin">Apify LinkedIn</option>
+              </optgroup>
               <option value="manual">{tx("Custom Jobs", "कस्टम नौकरियाँ")}</option>
             </select>
           </div>

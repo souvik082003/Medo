@@ -19,11 +19,17 @@ from ...ingestion.connectors import (
     ApifyLinkedInConnector,
     ArbeitnowConnector,
     DemoDatasetConnector,
+    GreenhousePublicConnector,
     HackerNewsConnector,
     HimalayasConnector,
     JobicyConnector,
+    JSearchRapidAPIConnector,
     RemoteOKConnector,
     RemotiveConnector,
+    SerpApiGoogleJobsConnector,
+    TheMuseConnector,
+    WorkingNomadsConnector,
+    build_sources_catalog,
 )
 from ...ingestion.normalizer import RawJobRecord, normalize_job_record
 from ...ingestion.pipeline import JobIngestionPipeline
@@ -37,6 +43,7 @@ from ...schemas.job import (
     JobResponse,
     JobSearchRequest,
     JobSearchResultItem,
+    JobSourceCatalogItem,
     JobSourceHealthResponse,
     LiveIngestRequest,
 )
@@ -201,12 +208,16 @@ def ingest_live_jobs(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Ingest live jobs from free public APIs (all_free, remotive, remoteok, arbeitnow, hackernews) or keyed sources."""
+    """Ingest live jobs from 9 free public APIs (all_free, remotive, remoteok, arbeitnow, hackernews, themuse, workingnomads, greenhouse) or keyed APIs."""
     settings = get_settings()
     if payload.source == "apify_linkedin" and not (settings.apify_api_token or "").strip():
-        raise AppError("APIFY_NOT_CONFIGURED", "APIFY_API_TOKEN is not configured in .env.", status_code=400)
+        raise AppError("APIFY_NOT_CONFIGURED", "APIFY_API_TOKEN is not configured in .env ($5/mo free credit, then $49/mo).", status_code=400)
     if payload.source == "adzuna" and not (settings.adzuna_app_id and settings.adzuna_app_key):
-        raise AppError("ADZUNA_NOT_CONFIGURED", "ADZUNA_APP_ID and ADZUNA_APP_KEY are not configured.", status_code=400)
+        raise AppError("ADZUNA_NOT_CONFIGURED", "ADZUNA_APP_ID and ADZUNA_APP_KEY are not configured (250 calls/day free).", status_code=400)
+    if payload.source == "jsearch_rapidapi" and not (settings.rapidapi_key or "").strip():
+        raise AppError("RAPIDAPI_NOT_CONFIGURED", "RAPIDAPI_KEY is not configured in .env (200 req/mo free, Pro $25/mo).", status_code=400)
+    if payload.source == "serpapi_jobs" and not (settings.serpapi_api_key or "").strip():
+        raise AppError("SERPAPI_NOT_CONFIGURED", "SERPAPI_API_KEY is not configured in .env (100 searches/mo free, $75/mo Dev).", status_code=400)
 
     connector_map = {
         "himalayas": HimalayasConnector,
@@ -215,14 +226,29 @@ def ingest_live_jobs(
         "remoteok": RemoteOKConnector,
         "arbeitnow": ArbeitnowConnector,
         "hackernews": HackerNewsConnector,
+        "themuse": TheMuseConnector,
+        "workingnomads": WorkingNomadsConnector,
+        "greenhouse": GreenhousePublicConnector,
         "apify_linkedin": ApifyLinkedInConnector,
         "adzuna": AdzunaConnector,
+        "jsearch_rapidapi": JSearchRapidAPIConnector,
+        "serpapi_jobs": SerpApiGoogleJobsConnector,
     }
     pipeline = JobIngestionPipeline(db, embedding_service=EmbeddingService(settings))
 
     if payload.source == "all_free":
-        free_sources = ["himalayas", "jobicy", "remotive", "remoteok", "arbeitnow", "hackernews"]
-        per_source_limit = max(3, min(15, (payload.limit + len(free_sources) - 1) // len(free_sources)))
+        free_sources = [
+            "himalayas",
+            "jobicy",
+            "remotive",
+            "remoteok",
+            "arbeitnow",
+            "hackernews",
+            "themuse",
+            "workingnomads",
+            "greenhouse",
+        ]
+        per_source_limit = max(3, min(12, (payload.limit + len(free_sources) - 1) // len(free_sources)))
         totals = {"fetched": 0, "inserted": 0, "updated": 0, "duplicates": 0}
         succeeded: list[str] = []
         warnings: list[str] = []
@@ -283,6 +309,14 @@ def list_source_health(
 ) -> list[JobSourceHealthResponse]:
     sources = db.scalars(select(JobSource).order_by(JobSource.name.asc())).all()
     return [JobSourceHealthResponse.model_validate(s) for s in sources]
+
+
+@router.get("/sources/catalog", response_model=list[JobSourceCatalogItem])
+def list_sources_catalog(
+    current_user: User = Depends(get_current_user),
+) -> list[JobSourceCatalogItem]:
+    """Return all supported free & paid job API sources with exact pricing and setup status."""
+    return [JobSourceCatalogItem(**item) for item in build_sources_catalog(get_settings())]
 
 
 @router.get("/{job_id}", response_model=JobResponse)

@@ -93,12 +93,32 @@ class LiveIngestRequest(BaseModel):
         "remoteok",
         "arbeitnow",
         "hackernews",
+        "themuse",
+        "workingnomads",
+        "greenhouse",
         "apify_linkedin",
         "adzuna",
+        "jsearch_rapidapi",
+        "serpapi_jobs",
     ] = "all_free"
     keywords: list[str] = Field(default_factory=lambda: ["Machine Learning Engineer", "AI Engineer"], max_length=5)
     region: str = Field(default="IN", max_length=16)
     limit: int = Field(default=15, ge=1, le=50)
+
+
+class JobSourceCatalogItem(BaseModel):
+    id: str
+    name: str
+    category: Literal["free_public", "paid_api_key"]
+    is_free: bool
+    requires_key: bool
+    is_configured: bool
+    env_vars: list[str] = Field(default_factory=list)
+    pricing_usd: str
+    pricing_inr: str
+    free_tier: str
+    coverage: str
+    signup_url: str
 
 
 class ApplicationCreate(BaseModel):

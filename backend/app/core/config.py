@@ -76,6 +76,8 @@ class Settings(BaseSettings):
     apify_api_token: str = ""
     adzuna_app_id: str = ""
     adzuna_app_key: str = ""
+    rapidapi_key: str = ""
+    serpapi_api_key: str = ""
 
     # Observability
     otel_exporter_otlp_endpoint: str = ""
