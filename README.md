@@ -10,6 +10,7 @@
 [![LangGraph](https://img.shields.io/badge/LangGraph-6%20Agents%20%C2%B7%2014%20Tools-3B5BFF?style=for-the-badge)](backend/app/agents/orchestrator.py)
 [![PyTorch LTR](https://img.shields.io/badge/PyTorch%20%2B%20Sklearn-AUC%200.979%20%C2%B7%20NDCG%200.986-EE4C2C?style=for-the-badge)](backend/app/ranking/ltr.py)
 [![CI](https://github.com/souvik082003/Medo/actions/workflows/ci.yml/badge.svg)](https://github.com/souvik082003/Medo/actions/workflows/ci.yml)
+[![Watch Demo on YouTube](https://img.shields.io/badge/Watch%20Full%20Demo-YouTube%20(4m%2026s)-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/nE9KasVcyyE)
 
 [Watch Demo](#-live-product-walkthrough-4m-26s) · [Visual Gallery](#-studio-feature-gallery) · [Why Medo](#-the-problem--engineering-standard) · [Architecture](#-system-architecture) · [13 Job APIs](#-live-job-ingestion-13-api-connectors) · [ML & LTR](#-calibrated-ml--learning-to-rank) · [30 Roadmaps](#-15-route-nextjs-15-studio-ui) · [Quick Start](#-quick-start-local-development)
 
@@ -21,9 +22,9 @@
 
 <div align="center">
 
-[![Watch Full 4m 26s HD Portfolio Walkthrough](docs/media/medo-preview.gif)](docs/media/medo-portfolio-demo.mp4)
+[![Watch Full 4m 26s HD Portfolio Walkthrough on YouTube](docs/media/medo-preview.gif)](https://youtu.be/nE9KasVcyyE)
 
-**[▶ Download / Play Full 4m 26s Portfolio Walkthrough MP4 (`docs/media/medo-portfolio-demo.mp4` · 35 MB)](docs/media/medo-portfolio-demo.mp4)**
+**[▶ Watch Full 4m 26s HD Portfolio Walkthrough on YouTube (`youtu.be/nE9KasVcyyE`)](https://youtu.be/nE9KasVcyyE)** · [Download Local MP4 (`docs/media/medo-portfolio-demo.mp4`)](docs/media/medo-portfolio-demo.mp4)
 
 </div>
 
