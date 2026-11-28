@@ -19,7 +19,13 @@
 
 ## Live Product Walkthrough (4m 26s)
 
-<video src="https://raw.githubusercontent.com/souvik082003/Medo/main/docs/media/medo-portfolio-demo.mp4" controls width="100%"></video>
+<div align="center">
+
+[![Watch Full 4m 26s Walkthrough on YouTube](docs/media/medo-preview.gif)](https://youtu.be/nE9KasVcyyE)
+
+**▶ [Watch Full 4m 26s HD Walkthrough on YouTube (`youtu.be/nE9KasVcyyE`)](https://youtu.be/nE9KasVcyyE)**
+
+</div>
 
 | Act | What the Walkthrough Demonstrates |
 | :--- | :--- |
